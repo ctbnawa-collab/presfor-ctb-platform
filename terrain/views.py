@@ -236,7 +236,7 @@ def rendement_leves(request):
     if request.GET.get('export') == 'csv':
         return _export_csv(
             f'rendement_agents_{d1}_{d2}.csv',
-            ['Agent', 'ID machine', 'Fonction', 'Département', 'Parcelles',
+            ['nom_agent', 'ID machine', 'Fonction', 'Département', 'Parcelles',
              'Surface (ha)', 'Jours actifs', 'Moyenne/jour', 'Objectif',
              'Atteinte (%)', 'Conformité (%)', 'Villages'],
             [[a['nom'], a['id_machine'], a['fonction'], a['departement'],
@@ -259,7 +259,7 @@ def rendement_leves(request):
         'graph_jours': json.dumps([j['jour'].strftime('%d/%m') for j in jours]),
         'graph_parcelles': json.dumps([j['nb_parcelles'] for j in jours]),
         'graph_agents': json.dumps([j['nb_agents'] for j in jours]),
-        'graph_noms': json.dumps([a['nom'][:22] for a in agents[:15]]),
+        'graph_noms': [a['nom'] for a in agents[:15]],
         'graph_prod': json.dumps([a['nb_parcelles'] for a in agents[:15]]),
     })
     return render(request, 'terrain/rendement.html', contexte)

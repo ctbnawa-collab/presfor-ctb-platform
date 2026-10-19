@@ -8,6 +8,8 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from .qualite import score_qualite
+from .identites import normaliser
+from .models import AgentRendement
 
 
 def _jour(v):
@@ -22,11 +24,15 @@ def par_agent(lignes, agents_par_machine=None, objectif_defaut=8):
     agents_par_machine : dict {(id_machine, departement) ou id_machine: Agent}
     """
     agents_par_machine = agents_par_machine or {}
+    noms_referentiel = {
+        (normaliser(a.code_agent), normaliser(a.departement)): a.nom_agent
+        for a in AgentRendement.objects.all()
+    }
     agg = defaultdict(lambda: {
         'id_machine': '', 'agent': None, 'nom': '', 'fonction': '', 'departement': '',
         'nb_parcelles': 0, 'surface_ha': 0.0, 'jours': set(),
         'nbconformes': 0, 'nb_erreurs': 0, 'nb_alertes': 0,
-        'villages': set(), 'sous_prefs': set(),
+        'villages': set(), 'sous_prefs': set(), 'noms_source': set(),
     })
 
     for l in lignes:
@@ -36,6 +42,9 @@ def par_agent(lignes, agents_par_machine=None, objectif_defaut=8):
         e = agg[cle]
         e['id_machine'] = machine
         e['departement'] = dept or '—'
+        nom_source = str(l.get('nom_agent') or '').strip()
+        if nom_source and normaliser(nom_source) != normaliser(machine):
+            e['noms_source'].add(nom_source)
         e['nb_parcelles'] += 1
         try:
             e['surface_ha'] += float(l.get('surface_ha') or 0)
@@ -59,7 +68,14 @@ def par_agent(lignes, agents_par_machine=None, objectif_defaut=8):
         nb_jours = len(e['jours']) or 1
         objectif = agent.objectif_journalier if agent else objectif_defaut
         e['agent'] = agent
-        e['nom'] = agent.nom_complet if agent else machine
+        noms_source = e.pop('noms_source')
+        nom_source = next(iter(noms_source)) if len(noms_source) == 1 else ''
+        nom_fiche = agent.nom_complet if agent else ''
+        if normaliser(nom_fiche) == normaliser(machine):
+            nom_fiche = ''
+        e['nom_agent'] = (nom_source or noms_referentiel.get(
+            (normaliser(machine), normaliser(dept)), '') or nom_fiche)
+        e['nom'] = e['nom_agent'] or machine
         e['fonction'] = agent.get_fonction_display() if agent else 'Non enregistré'
         e['enregistre'] = agent is not None
         e['nb_jours'] = nb_jours

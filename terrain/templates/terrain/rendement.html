@@ -63,7 +63,7 @@
   <div class="card-body p-0">
     <table class="table table-sm tbl-sm table-hover mb-0">
       <thead><tr>
-        <th>Agent</th><th>Machine</th><th>Fonction</th><th>Département</th>
+        <th>nom_agent</th><th>Machine</th><th>Fonction</th><th>Département</th>
         <th class="text-end">Parcelles</th><th class="text-end">Surface (ha)</th>
         <th class="text-end">Jours</th><th class="text-end">Moy./jour</th>
         <th style="width:130px">Atteinte objectif</th><th class="text-end">Conformité</th><th class="text-end">Villages</th>
@@ -72,8 +72,8 @@
       {% for a in agents %}
       <tr>
         <td>
-          {% if a.agent %}<a href="{% url 'rendement_agent' a.agent.pk %}"><strong>{{ a.nom }}</strong></a>
-          {% else %}<span class="text-muted">{{ a.nom }}</span>
+          {% if a.agent %}<a href="{% url 'rendement_agent' a.agent.pk %}"><strong>{{ a.nom_agent|default:"Nom non renseigné" }}</strong></a>
+          {% else %}<span class="text-muted">{{ a.nom_agent|default:"Nom non renseigné" }}</span>
             <span class="badge bg-warning-subtle text-warning-emphasis ms-1" style="font-size:.62rem">non enregistré</span>{% endif %}
         </td>
         <td><code class="small">{{ a.id_machine }}</code></td>
@@ -144,6 +144,7 @@
 
 {% block extra_js %}
 {% if not erreur %}
+{{ graph_noms|json_script:"graph-noms" }}
 <script>
 const jours = {{ graph_jours|safe }}, prod = {{ graph_parcelles|safe }}, agts = {{ graph_agents|safe }};
 new Chart(document.getElementById('graphJours'), {
@@ -161,7 +162,7 @@ new Chart(document.getElementById('graphJours'), {
 });
 new Chart(document.getElementById('graphAgents'), {
   type:'bar',
-  data:{labels:{{ graph_noms|safe }}, datasets:[{label:'Parcelles levées', data:{{ graph_prod|safe }},
+  data:{labels:JSON.parse(document.getElementById("graph-noms").textContent), datasets:[{label:'Parcelles levées', data:{{ graph_prod|safe }},
         backgroundColor:'#41A0C4', borderRadius:3}]},
   options:{indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
     scales:{x:{beginAtZero:true}, y:{ticks:{font:{size:10}}}}}
