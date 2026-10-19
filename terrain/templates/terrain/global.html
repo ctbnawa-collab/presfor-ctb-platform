@@ -20,7 +20,7 @@
     <div class="val">{{ nb_leves }}</div><div class="lbl">parcelles levées sur la période</div></div></div>
   <div class="col-6 col-lg-3"><div class="card card-metric vert">
     <div class="ico text-success"><i class="fa fa-ruler-combined"></i></div>
-    <div class="val">{{ surface_levee|floatformat:0 }}</div><div class="lbl">hectares levés</div></div></div>
+    <div class="val">{{ surface_levee|floatformat:2 }}</div><div class="lbl">hectares levés</div></div></div>
   <div class="col-6 col-lg-3"><div class="card card-metric bleu2">
     <div class="ico text-primary"><i class="fa fa-user-group"></i></div>
     <div class="val">{{ nb_agents_actifs }}</div><div class="lbl">agents actifs</div></div></div>
@@ -35,15 +35,17 @@
     <div class="card-body"><canvas id="graphProd" height="110"></canvas></div>
   </div></div>
   <div class="col-lg-5"><div class="card h-100">
-    <div class="card-header">Agents les plus productifs</div>
+    <div class="card-header">Agents classés par superficie (ha)</div>
     <div class="card-body p-0">
       <table class="table table-sm tbl-sm mb-0">
+        <thead><tr><th>nom_agent</th><th>Département</th><th class="text-end">Parcelles</th><th class="text-end">Superficie (ha)</th><th class="text-end">Parcelles/jour</th></tr></thead>
         <tbody>{% for a in top_agents %}
         <tr><td>{% if a.agent %}<a href="{% url 'rendement_agent' a.agent.pk %}">{{ a.nom }}</a>{% else %}<span class="text-muted">{{ a.nom }}</span>{% endif %}</td>
             <td><span class="badge-dept dept-{{ a.departement }}">{{ a.departement }}</span></td>
             <td class="text-end fw-semibold">{{ a.nb_parcelles }}</td>
+            <td class="text-end fw-semibold text-success">{{ a.surface_ha|floatformat:2 }}</td>
             <td class="text-end small text-muted">{{ a.moyenne_jour }}/j</td></tr>
-        {% empty %}<tr><td class="text-center text-muted py-3">Aucun levé</td></tr>{% endfor %}</tbody>
+        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucun levé</td></tr>{% endfor %}</tbody>
       </table>
     </div>
   </div></div>
@@ -154,12 +156,14 @@
 
 {% block extra_js %}
 {% if terrain_ok %}
+{{ graph_surfaces|json_script:"global-surfaces" }}
 <script>
 new Chart(document.getElementById('graphProd'), {
   type:'line',
   data:{labels:{{ graph_jours|safe }}, datasets:[{label:'Parcelles levées', data:{{ graph_leves|safe }},
-        borderColor:'#2E75B6', backgroundColor:'rgba(46,117,182,.14)', fill:true, tension:.3, pointRadius:2}]},
-  options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+        borderColor:'#2E75B6', backgroundColor:'rgba(46,117,182,.14)', fill:true, tension:.3, pointRadius:2,yAxisID:'y'},
+        {label:'Superficie (ha)',data:JSON.parse(document.getElementById('global-surfaces').textContent),borderColor:'#70AD47',backgroundColor:'rgba(112,173,71,.10)',tension:.3,pointRadius:2,yAxisID:'ySurface'}]},
+  options:{responsive:true, plugins:{legend:{position:'bottom'},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>c.dataset.label+': '+new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(c.parsed.y)+(c.dataset.yAxisID==='ySurface'?' ha':'')}}}, scales:{y:{beginAtZero:true,title:{display:true,text:'Nombre de parcelles'},ticks:{precision:0}},ySurface:{position:'right',beginAtZero:true,title:{display:true,text:'Superficie (ha)'},grid:{drawOnChartArea:false}}}}
 });
 </script>
 {% endif %}

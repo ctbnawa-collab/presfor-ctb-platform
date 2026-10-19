@@ -665,13 +665,15 @@ def global_activite(request):
             'nb_levesconformes': sum(1 for l in parcelles if l['conforme']),
             'depts_terrain': rdt.par_departement(parcelles),
             'jours': rdt.par_jour(parcelles),
-            'top_agents': rdt.par_agent(parcelles, _agents_index(),
-                                        settings.OBJECTIF_JOURNALIER_DEFAUT)[:8],
+            'top_agents': sorted(
+                rdt.par_agent(parcelles, _agents_index(), settings.OBJECTIF_JOURNALIER_DEFAUT),
+                key=lambda a: (-a['surface_ha'], -a['nb_parcelles'], a['nom']))[:8],
         })
         contexte['taux_conformite'] = round(
             contexte['nb_levesconformes'] / len(parcelles) * 100, 1) if parcelles else 0
         contexte['graph_jours'] = json.dumps(
             [j['jour'].strftime('%d/%m') for j in contexte['jours']])
+        contexte['graph_surfaces'] = [j['surface_ha'] for j in contexte['jours']]
         contexte['graph_leves'] = json.dumps(
             [j['nb_parcelles'] for j in contexte['jours']])
     except PostgisIndisponible as exc:
