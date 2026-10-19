@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{{ APP_NOM }} — {{ APP_SOUS_TITRE }}{% endblock %}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -17,7 +17,7 @@ body{background:#f4f6fa;font-family:'Segoe UI',system-ui,sans-serif;color:var(--
 
 /* ── Barre latérale ── */
 .sidebar{width:252px;min-height:100vh;background:linear-gradient(180deg,#123A5E 0%,#0D2B46 100%);
-  position:fixed;top:0;left:0;z-index:100;overflow-y:auto;}
+  position:fixed;top:0;left:0;z-index:1040;height:100vh;height:100dvh;overflow-y:auto;}
 .sidebar .brand{padding:18px 18px 16px;color:#fff;border-bottom:1px solid rgba(255,255,255,.12);
   display:flex;align-items:center;gap:11px;}
 .sidebar .brand .sigle{background:var(--vert2);width:38px;height:38px;border-radius:9px;
@@ -107,24 +107,65 @@ a{text-decoration:none;}
   font-size:.8rem;cursor:pointer;transition:background .15s,color .15s;}
 .nav-verticale button:hover{background:var(--bleu);color:#fff;}
 .nav-verticale button:focus-visible{outline:2px solid var(--vert2);outline-offset:-2px;}
-@media (max-width:900px){.nav-verticale{right:8px;bottom:12px;}}
-@media print{.nav-verticale{display:none;}}
+/* Les tableaux restent dans leur propre zone de défilement. */
+.main,.main .row>*,.card,.card-body,.topbar>*,form{min-width:0;}
+.main{overflow-wrap:anywhere;}
+.main img,.main video,.main iframe{max-width:100%;}
+.table-responsive{max-width:100%;overscroll-behavior-x:contain;}
+.table-responsive:focus-visible{outline:2px solid var(--bleu3);outline-offset:2px;}
+.menu-toggle,.menu-close,.sidebar-backdrop{display:none;}
+.topbar-title{flex:1;min-width:0;}
+.topbar-actions{flex-wrap:wrap;max-width:100%;}
+@media print{.nav-verticale,.menu-toggle,.menu-close,.sidebar-backdrop{display:none!important;}}
 @media (max-width:900px){
-  .sidebar{position:static;width:100%;min-height:0;}
-  .main{margin-left:0;}
-  .topbar{margin:-22px -22px 18px;}
+  .sidebar{width:min(84vw,310px);min-height:0;transform:translateX(-100%);
+    transition:transform .2s ease;visibility:hidden;padding-bottom:env(safe-area-inset-bottom);}
+  body.menu-open{overflow:hidden;}
+  body.menu-open .sidebar{transform:translateX(0);visibility:visible;}
+  .sidebar .brand{padding-right:8px;}
+  .sidebar .nav-link{min-height:44px;}
+  .menu-close{display:inline-flex;align-items:center;justify-content:center;margin-left:auto;
+    flex:none;width:44px;height:44px;border:0;border-radius:7px;background:transparent;color:white;font-size:1.25rem;}
+  .sidebar-backdrop{position:fixed;inset:0;z-index:1035;background:rgba(0,0,0,.45);border:0;}
+  body.menu-open .sidebar-backdrop{display:block;}
+  .main{margin-left:0;padding:12px;}
+  .topbar{margin:-12px -12px 16px;padding:10px 12px;gap:8px;z-index:1020;}
+  .menu-toggle{display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:44px;height:44px;border:1px solid #dde4ec;border-radius:8px;background:white;color:var(--bleu);}
+  .topbar h1{font-size:1rem;line-height:1.3;}
+  .topbar .fil{line-height:1.4;}
+  .topbar-actions:empty{display:none;}
+  .topbar-actions{flex-basis:100%;}
+  .topbar-actions .btn{flex:1;}
+  .nav-verticale{display:none!important;}
+  .main .btn,.main button,.main .form-control,.main .form-select{min-height:44px;}
+  .main .form-control,.main .form-select{font-size:16px;max-width:100%;}
+  .main form.d-flex{flex-wrap:wrap;}
+  .main form.d-flex>.form-control,.main form.d-flex>.form-select{flex:1 1 180px;width:100%!important;}
+  .main .filtres{margin-left:0;margin-right:0;padding:12px 4px;}
+  .main .filtres>.col-auto{width:100%;min-width:0!important;}
+  .main .filtres input,.main .filtres select,.main .filtres button{width:100%;}
+  .main .card-header.d-flex,.main .alert.d-flex{flex-wrap:wrap;gap:8px;}
+  .main .card-body{padding:12px;}
+  .card-metric{padding:16px 8px;}
+  .card-metric .val{font-size:1.65rem;}
+  .table-responsive .table{min-width:600px;}
+  .dropdown-menu{min-width:min(280px,calc(100vw - 32px))!important;max-width:calc(100vw - 24px);}
+  #carte,#geo-map{height:60vh!important;height:60dvh!important;min-height:320px!important;}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 {% block extra_css %}{% endblock %}
 </style>
 </head>
 <body>
-<div class="sidebar">
+<a class="visually-hidden-focusable" href="#main-content">Aller au contenu</a>
+<div class="sidebar" id="app-sidebar" aria-label="Menu principal">
   <div class="brand">
     <div class="sigle">PCF</div>
     <div class="nom">{{ APP_NOM }}<small>{{ APP_SOUS_TITRE }}</small></div>
+    <button type="button" class="menu-close" aria-label="Fermer le menu">×</button>
   </div>
-  <nav class="mt-1 pb-2">
+  <nav class="mt-1 pb-2" aria-label="Sections de l’application">
     <p class="section-title">Pilotage</p>
     <a href="{% url 'global_activite' %}" class="nav-link {% if request.resolver_match.url_name == 'global_activite' %}active{% endif %}">
       <i class="fa fa-gauge-high"></i> Activité globale</a>
@@ -174,13 +215,15 @@ a{text-decoration:none;}
   <div class="pied">{{ APP_PROJET }}<br>Région NAWA — Côte d'Ivoire</div>
 </div>
 
-<div class="main">
+<button class="sidebar-backdrop" type="button" tabindex="-1" aria-label="Fermer le menu"></button>
+<main class="main" id="main-content">
   <div class="topbar">
-    <div>
+    <button type="button" class="menu-toggle" aria-label="Ouvrir le menu" aria-controls="app-sidebar" aria-expanded="false"><i class="fa fa-bars" aria-hidden="true"></i></button>
+    <div class="topbar-title">
       <h1>{% block page_title %}{{ titre|default:APP_NOM }}{% endblock %}</h1>
       <div class="fil">{% block fil %}{% endblock %}</div>
     </div>
-    <div class="d-flex gap-2">{% block actions %}{% endblock %}</div>
+    <div class="topbar-actions d-flex gap-2">{% block actions %}{% endblock %}</div>
   </div>
   {% for msg in messages %}
   <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} alert-dismissible fade show mb-3" role="alert">
@@ -188,7 +231,7 @@ a{text-decoration:none;}
   </div>
   {% endfor %}
   {% block content %}{% endblock %}
-</div>
+</main>
 
 <nav class="nav-verticale" aria-label="Navigation dans la page">
   <button type="button" onclick="allerEn('haut')" title="Haut de page" aria-label="Haut de page">
@@ -203,6 +246,46 @@ a{text-decoration:none;}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Navigation mobile, utilisable au clavier et au toucher.
+const menuButton=document.querySelector('.menu-toggle');
+const sidebar=document.getElementById('app-sidebar');
+const mainContent=document.getElementById('main-content');
+const mobileLayout=window.matchMedia('(max-width:900px)');
+function setMenu(open){
+  open=Boolean(open && mobileLayout.matches);
+  document.body.classList.toggle('menu-open',open);
+  menuButton.setAttribute('aria-expanded',String(open));
+  mainContent.inert=open;
+  if(open){sidebar.querySelector('.menu-close').focus();}
+  else if(mobileLayout.matches && sidebar.contains(document.activeElement)){menuButton.focus();}
+}
+menuButton.addEventListener('click',()=>setMenu(true));
+sidebar.querySelector('.menu-close').addEventListener('click',()=>setMenu(false));
+document.querySelector('.sidebar-backdrop').addEventListener('click',()=>setMenu(false));
+sidebar.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>setMenu(false)));
+mobileLayout.addEventListener('change',()=>setMenu(false));
+document.addEventListener('keydown',event=>{
+  if(!document.body.classList.contains('menu-open'))return;
+  if(event.key==='Escape'){setMenu(false);return;}
+  if(event.key==='Tab'){
+    const items=[...sidebar.querySelectorAll('a[href],button')].filter(e=>e.getClientRects().length);
+    const first=items[0],last=items[items.length-1];
+    if(event.shiftKey && document.activeElement===first){event.preventDefault();last.focus();}
+    else if(!event.shiftKey && document.activeElement===last){event.preventDefault();first.focus();}
+  }
+});
+// Préserver toutes les colonnes sans élargir la page sur téléphone.
+document.querySelectorAll('.main table').forEach(table=>{
+  if(!table.closest('.table-responsive') && !table.closest('[style*="overflow"]')){
+    const region=document.createElement('div');region.className='table-responsive';
+    table.before(region);region.append(table);
+  }
+});
+document.querySelectorAll('.main .table-responsive,.main [style*="overflow"]').forEach(region=>{
+  if(!region.querySelector('table'))return;
+  region.tabIndex=0;region.setAttribute('role','region');
+  region.setAttribute('aria-label','Tableau : faire défiler horizontalement pour voir toutes les colonnes');
+});
 // ── Navigation verticale ────────────────────────────────────────────────────
 function allerEn(ou) {
   window.scrollTo({top: ou === 'bas' ? document.body.scrollHeight : 0,

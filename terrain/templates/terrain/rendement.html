@@ -54,7 +54,7 @@
   </div></div>
   <div class="col-lg-5"><div class="card h-100">
     <div class="card-header">Classement des agents (15 premiers)</div>
-    <div class="card-body"><canvas id="graphAgents" height="180"></canvas></div>
+    <div class="card-body" style="height:620px"><canvas id="graphAgents" height="180" aria-label="Classement de production par nom d’agent" role="img"></canvas></div>
   </div></div>
 </div>
 
@@ -164,8 +164,11 @@ new Chart(document.getElementById('graphAgents'), {
   type:'bar',
   data:{labels:JSON.parse(document.getElementById("graph-noms").textContent), datasets:[{label:'Parcelles levées', data:{{ graph_prod|safe }},
         backgroundColor:'#41A0C4', borderRadius:3}]},
-  options:{indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
-    scales:{x:{beginAtZero:true}, y:{ticks:{font:{size:10}}}}}
+  options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{x:{beginAtZero:true}, y:{ticks:{font:{size:11},callback:function(value){
+      const name=String(this.getLabelForValue(value));
+      return name.match(/.{1,18}(?:\s|$)|.{1,18}/g)||[name];
+    }}}}}
 });
 </script>
 {% endif %}

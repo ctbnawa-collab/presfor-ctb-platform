@@ -18,7 +18,7 @@ button{cursor:pointer}button.p{background:var(--ac);color:#fff;border-color:var(
 main{padding:14px 16px 40px;max-width:1600px;margin:auto}
 .card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:12px}
 .wk{font-size:15px;font-weight:700;margin:18px 0 8px}.wk span{font-weight:400;color:var(--mu);font-size:12px;margin-left:6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px}
 .kpi b{display:block;font-size:22px}.kpi span{color:var(--mu);font-size:12px}
 .leg{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin:6px 0 12px}
 .chip{padding:2px 9px;border-radius:99px;font-size:12px;display:inline-block}
@@ -27,9 +27,17 @@ main{padding:14px 16px 40px;max-width:1600px;margin:auto}
 .tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:5px 6px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}th{white-space:normal;vertical-align:bottom}.cc td:first-child,.cc th:first-child{white-space:normal}.cc{margin:0}.cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:10px;margin-bottom:12px}th{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.03em}td.num,th.num{text-align:right}
 tr.o td{background:var(--or);color:var(--ort)}tr.y td{background:var(--ye);color:var(--yet)}tr.g td{background:var(--gr);color:var(--grt);font-weight:600}
 tr.sup td{font-weight:700;border-top:2px solid var(--bd)}tr.dep td{background:var(--bd);font-weight:700;color:var(--tx)}
-.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.form label{display:flex;flex-direction:column;font-size:11px;color:var(--mu);gap:2px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px}.form label{display:flex;flex-direction:column;font-size:11px;color:var(--mu);gap:2px}
 .mu{color:var(--mu)}.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:99px;z-index:9}
 .ph{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:600px){
+header,.bar,main{padding-left:10px;padding-right:10px;}
+.bar label{flex:1 1 140px;min-width:0;}.bar input,.bar select{width:100%;min-width:0;}
+input,select,button{min-height:44px;font-size:16px;max-width:100%;}
+.tabs button{flex-shrink:0;}.card{padding:10px;min-width:0;}
+.tw{max-width:100%;overscroll-behavior-x:contain;}
+.best .nm{overflow-wrap:anywhere;}.toast{max-width:calc(100vw - 24px);border-radius:12px;}
+}
 </style></head><body>
 <header><h1>Rendements des agents<small>Département › Superviseur › Agent — objectifs hebdomadaires, RDC et primes</small></h1></header>
 <div class="bar">
