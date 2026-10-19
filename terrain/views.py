@@ -244,6 +244,7 @@ def rendement_leves(request):
               a['objectif'], a['taux_objectif'], a['taux_conformite'], a['nb_villages']]
              for a in agents])
 
+    classement = sorted(agents, key=lambda a: (-a['surface_ha'], -a['nb_parcelles'], a['nom']))[:15]
     surface_totale = round(sum(a['surface_ha'] for a in agents), 2)
     nb_jours_actifs = len(jours)
     contexte.update({
@@ -260,9 +261,9 @@ def rendement_leves(request):
         'graph_parcelles': json.dumps([j['nb_parcelles'] for j in jours]),
         'graph_agents': json.dumps([j['nb_agents'] for j in jours]),
         'graph_surfaces_jours': [j['surface_ha'] for j in jours],
-        'graph_surfaces_agents': [a['surface_ha'] for a in agents[:15]],
-        'graph_noms': [a['nom'] for a in agents[:15]],
-        'graph_prod': json.dumps([a['nb_parcelles'] for a in agents[:15]]),
+        'graph_surfaces_agents': [a['surface_ha'] for a in classement],
+        'graph_noms': [a['nom'] for a in classement],
+        'graph_prod': json.dumps([a['nb_parcelles'] for a in classement]),
     })
     return render(request, 'terrain/rendement.html', contexte)
 
