@@ -10,6 +10,7 @@ from django.http import JsonResponse,HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .models import AgentRendement,LigneRendement,ParametresRendement
 from .identites import resolve_agent,normaliser
 from .exclusions import est_exclu,index_exclusions
@@ -84,6 +85,7 @@ def page(request):
     return render(request,'terrain/performance.html',{'titre':'Rendement hebdomadaire','sessions':AnalyseSession.objects.filter(statut='termine'),'selection':request.GET.get('session','')})
 
 @ensure_csrf_cookie
+@xframe_options_sameorigin
 def model_page(request):
     return render(request,'terrain/performance_model.html')
 
