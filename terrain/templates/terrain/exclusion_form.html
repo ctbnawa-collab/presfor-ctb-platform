@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ titre }} — PRESFOR CTB{% endblock %}
+{% block content %}
+<div class="card" style="max-width:680px">
+  <div class="card-body p-4">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="row g-3">
+        {% for champ in form %}
+        <div class="col-md-{% if champ.name == 'commentaire' or champ.name == 'active' %}12{% else %}6{% endif %}">
+          {% if champ.name == 'active' %}
+          <div class="form-check mt-2">{{ champ }}
+            <label class="form-check-label ms-1">{{ champ.label }} — décochez pour rendre la parcelle de nouveau visible</label></div>
+          {% else %}
+          <label class="form-label small fw-semibold">{{ champ.label }}</label>{{ champ }}
+          {% endif %}
+          {% for e in champ.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <hr class="my-4">
+      <button class="btn btn-primary px-4">Enregistrer</button>
+      <a href="{% url 'exclusions' %}" class="btn btn-outline-secondary px-4">Annuler</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

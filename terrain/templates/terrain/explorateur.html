@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Explorateur — PRESFOR CTB{% endblock %}
+{% block fil %}Parcourir les tables de la base terrain pour adapter les requêtes{% endblock %}
+{% block content %}
+{% if erreur %}<div class="alert alert-danger py-2"><i class="fa fa-circle-xmark me-2"></i>{{ erreur }}</div>{% endif %}
+<form method="get" class="filtres row g-2 align-items-end">
+  <div class="col-auto" style="min-width:280px">
+    <label class="form-label mb-1 small text-muted">Table</label>
+    <select name="table" class="form-select" onchange="this.form.submit()">
+      <option value="">— choisir une table —</option>
+      {% for t in tables %}<option value="{{ t.table_name }}" {% if t.table_name == table %}selected{% endif %}>{{ t.table_name }} ({{ t.nb_colonnes }} col.)</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-primary btn-sm px-3">Afficher</button></div>
+</form>
+
+{% if table %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">Colonnes de <code>{{ table }}</code></div>
+      <div class="card-body p-0" style="max-height:480px;overflow:auto">
+        <table class="table table-sm tbl-sm mb-0">
+          <thead><tr><th>Nom</th><th>Type</th><th>Null</th></tr></thead>
+          <tbody>
+          {% for c in colonnes %}
+          <tr><td><code>{{ c.column_name }}</code></td><td class="text-muted small">{{ c.data_type }}</td>
+              <td class="small">{% if c.is_nullable == 'YES' %}oui{% else %}non{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">Aperçu — 15 premières lignes</div>
+      <div class="card-body p-0" style="max-height:480px;overflow:auto">
+        <table class="table table-sm tbl-sm table-hover mb-0" style="white-space:nowrap">
+          <thead><tr>{% for e in entetes %}<th>{{ e }}</th>{% endfor %}</tr></thead>
+          <tbody>
+          {% for ligne in apercu %}
+          <tr>{% for v in ligne %}<td class="small">{{ v|default_if_none:""|truncatechars:40 }}</td>{% endfor %}</tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card"><div class="vide"><i class="fa fa-table"></i>
+  Choisissez une table pour voir sa structure et un aperçu de son contenu.<br>
+  <span class="small">Utile pour adapter <code>terrain/sql/oppositions.sql</code> au schéma réel.</span>
+</div></div>
+{% endif %}
+{% endblock %}

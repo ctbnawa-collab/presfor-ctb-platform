@@ -1,0 +1,291 @@
+{% extends "analyse/base.html" %}
+{% load l10n %}
+{% block title %}Région NAWA — PRESFOR CTB{% endblock %}
+{% block page_title %}<span class="badge dept-NAWA badge-dept me-2">NAWA</span> Analyse régionale{% endblock %}
+{% block content %}
+
+{% include "analyse/_filtre_date.html" %}
+
+{% if filtre_date_actif %}
+<div class="card mb-4">
+  <div class="card-header" style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)">
+      <i class="fa fa-calendar-check me-2"></i>Activité sur la période retenue</h6>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm mb-0">
+      <thead><tr><th>Département</th><th class="text-end">Demandes</th>
+                 <th class="text-end">PVCL terminés</th><th class="text-end">RDC terminés</th>
+                 <th class="text-end">PVCL en cours</th><th class="text-end">RDC en cours</th>
+                 <th class="text-end">Avec remarque</th><th class="text-end">Surface (ha)</th></tr></thead>
+      <tbody>
+        {% for c in par_dept %}
+        <tr><td><span class="badge-dept dept-{{ c.departement }}">{{ c.departement }}</span></td>
+            <td class="text-end fw-semibold">{{ c.total }}</td>
+            <td class="text-end text-success">{{ c.pvcl_termine }}</td>
+            <td class="text-end text-success">{{ c.rdc_termine }}</td>
+            <td class="text-end">{{ c.pvcl_encours }}</td>
+            <td class="text-end">{{ c.rdc_encours }}</td>
+            <td class="text-end text-warning">{{ c.avec_remarque }}</td>
+            <td class="text-end">{{ c.surface }}</td></tr>
+        {% endfor %}
+        <tr class="fw-semibold" style="background:#f7f9fc">
+          <td>NAWA</td><td class="text-end">{{ compteurs.total }}</td>
+          <td class="text-end">{{ compteurs.pvcl_termine }}</td>
+          <td class="text-end">{{ compteurs.rdc_termine }}</td>
+          <td class="text-end">{{ compteurs.pvcl_encours }}</td>
+          <td class="text-end">{{ compteurs.rdc_encours }}</td>
+          <td class="text-end">{{ compteurs.avec_remarque }}</td>
+          <td class="text-end">{{ compteurs.surface }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if remarques_frequentes %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center"
+       style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)">
+      <i class="fa fa-clipboard-check me-2"></i>Contrôle qualité — motifs de blocage sur la région</h6>
+    <span class="small text-muted">{{ compteurs.avec_remarque }} dossier(s) à compléter
+      sur {{ compteurs.total }}</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm mb-0">
+      <thead><tr><th style="width:70px">Volet</th><th>Motif</th>
+                 <th class="text-end" style="width:90px">Dossiers</th>
+                 <th style="width:200px">Part</th></tr></thead>
+      <tbody>
+      {% for r in remarques_frequentes %}
+      <tr>
+        <td><span class="badge {% if r.volet == 'PVCL' %}bg-primary-subtle text-primary-emphasis{% else %}bg-success-subtle text-success-emphasis{% endif %}">{{ r.volet }}</span></td>
+        <td>{{ r.motif }}</td>
+        <td class="text-end fw-semibold">{{ r.nb }}</td>
+        <td>
+          <div class="progress" style="height:7px;background:#eef2f6">
+            <div class="progress-bar {% if r.pct > 50 %}bg-danger{% elif r.pct > 20 %}bg-warning{% else %}bg-info{% endif %}"
+                 style="width:{{ r.pct|unlocalize }}%"></div></div>
+          <span class="small text-muted">{{ r.pct }} %</span>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-muted">
+    Ouvrez un département pour filtrer les dossiers sur un motif précis.
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header" style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)">
+      <i class="fa fa-diagram-project me-2"></i>Étapes de la chaîne CF — région NAWA</h6>
+  </div>
+  <div class="card-body">
+    <div class="row g-2">
+      {% for e in etapes_repartition %}
+      <div class="col-6 col-lg-3">
+        <div class="p-2 rounded-3" style="background:{{ e.couleur }};
+             color:{% if e.etape == 'Validation' %}#fff{% else %}#243746{% endif %}">
+          <div class="fw-semibold" style="font-size:1.35rem;line-height:1">{{ e.nb }}</div>
+          <div style="font-size:.74rem;opacity:.9">{{ e.etape }}</div>
+          <div style="font-size:.68rem;opacity:.72">{{ e.pct }} %</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+
+<!-- Bandeau -->
+<div class="card p-3 mb-4" style="background:linear-gradient(135deg,#1F4E79,#2E75B6);color:#fff;border-radius:16px">
+  <div class="row align-items-center">
+    <div class="col">
+      <div style="font-size:.85rem;opacity:.8">Région</div>
+      <div style="font-size:2rem;font-weight:700">NAWA</div>
+      <div style="opacity:.8">{{ session.nom }} — {{ session.periode }}</div>
+    </div>
+    <div class="col-auto text-end">
+      <div style="font-size:2.5rem;font-weight:800">{{ stat.nb_demandes }}</div>
+      <div style="font-size:.8rem;opacity:.8">demandes totales</div>
+    </div>
+  </div>
+</div>
+
+<!-- Synthèse NAWA (8 métriques) -->
+<div class="row g-3 mb-4">
+  {% with s=stat %}
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-list-ul me-2"></i>Synthèse NAWA</h6>
+      <div class="stat-row mb-2"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">Nbre Parcelles levées (fichier excel parcelle)</span>
+        <span class="val">{{ s.nb_parcelles }}</span>
+      </div></div>
+      <div class="stat-row mb-2"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">Nbre de demande créé</span>
+        <span class="val">{{ s.nb_demandes }}</span>
+      </div></div>
+      <div class="stat-row mb-2"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">Superficie levée (fichier excel parcelle)</span>
+        <span class="val">{{ s.superficie_levee|floatformat:2 }} ha</span>
+      </div></div>
+      <!-- RDC -->
+      <div class="stat-row mb-1"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">RDC à créer</span>
+        <span class="val text-danger">{{ s.nb_rdc_a_creer }}</span>
+      </div></div>
+      <div class="stat-row mb-1"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">RDC entamé ou en cours</span>
+        <span class="val text-warning">{{ s.nb_rdc_encours }}</span>
+      </div></div>
+      <div class="stat-row mb-2"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">RDC bouclé ou terminé</span>
+        <span class="val text-success">{{ s.nb_rdc_termine }}</span>
+      </div></div>
+      <div class="mb-2 px-1">
+        <div class="progress" style="height:8px;background:#f0f0f0">
+          <div class="progress-bar bg-danger"  style="width:{{ s.taux_rdc_a_creer|unlocalize }}%" title="À créer {{ s.nb_rdc_a_creer }}"></div>
+          <div class="progress-bar bg-warning" style="width:{{ s.taux_rdc_encours|unlocalize }}%" title="En cours {{ s.nb_rdc_encours }}"></div>
+          <div class="progress-bar bg-success" style="width:{{ s.taux_rdc|unlocalize }}%"         title="Terminé {{ s.nb_rdc_termine }}"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-1" style="font-size:.7rem">
+          <span class="text-danger">À créer {{ s.taux_rdc_a_creer }}%</span>
+          <span class="text-warning">En cours {{ s.taux_rdc_encours }}%</span>
+          <span class="text-success">Terminé {{ s.taux_rdc }}%</span>
+        </div>
+      </div>
+      <div class="stat-row yellow mb-2"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl fw-bold">🟡 Superficie Enquêtée (rdc en cours + terminé)</span>
+        <span class="val" style="color:#E65100">{{ s.superficie_enquetee|floatformat:2 }} ha</span>
+      </div></div>
+      <!-- PVCL -->
+      <div class="stat-row mb-1"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">PVCL à créer</span>
+        <span class="val text-danger">{{ s.nb_pvcl_a_creer }}</span>
+      </div></div>
+      <div class="stat-row mb-1"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">PVCL entamé ou en cours</span>
+        <span class="val text-warning">{{ s.nb_pvcl_encours }}</span>
+      </div></div>
+      <div class="stat-row mb-2"><div class="d-flex justify-content-between align-items-center">
+        <span class="lbl">PVCL bouclé ou terminé</span>
+        <span class="val text-success">{{ s.nb_pvcl_termine }}</span>
+      </div></div>
+      <div class="px-1">
+        <div class="progress" style="height:8px;background:#f0f0f0">
+          <div class="progress-bar bg-danger"  style="width:{{ s.taux_pvcl_a_creer|unlocalize }}%" title="À créer {{ s.nb_pvcl_a_creer }}"></div>
+          <div class="progress-bar bg-warning" style="width:{{ s.taux_pvcl_encours|unlocalize }}%" title="En cours {{ s.nb_pvcl_encours }}"></div>
+          <div class="progress-bar bg-success" style="width:{{ s.taux_pvcl|unlocalize }}%"         title="Terminé {{ s.nb_pvcl_termine }}"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-1" style="font-size:.7rem">
+          <span class="text-danger">À créer {{ s.taux_pvcl_a_creer }}%</span>
+          <span class="text-warning">En cours {{ s.taux_pvcl_encours }}%</span>
+          <span class="text-success">Terminé {{ s.taux_pvcl }}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+</div>
+
+<!-- Comparaison départements -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-chart-pie me-2"></i>RDC par département</h6>
+      <canvas id="chartRDC" height="220"></canvas>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-chart-pie me-2"></i>PVCL par département</h6>
+      <canvas id="chartPVCL" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Tableau récapitulatif -->
+<div class="card">
+  <div class="card-header" style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)"><i class="fa fa-table me-2"></i>Tableau de bord par département</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover tbl-sm mb-0">
+      <thead style="background:var(--bleu);color:#fff">
+        <tr>
+          <th>Département</th>
+          <th class="text-center">Parcelles</th>
+          <th class="text-center">Sup. levée (ha)</th>
+          <th class="text-center">Demandes</th>
+          <th class="text-center text-danger">RDC à créer</th>
+          <th class="text-center text-warning">RDC en cours</th>
+          <th class="text-center text-success">RDC terminé</th>
+          <th class="text-center" style="background:#FFF8E1;color:#333">Sup. Enquêtée</th>
+          <th class="text-center text-danger">PVCL à créer</th>
+          <th class="text-center text-warning">PVCL en cours</th>
+          <th class="text-center text-success">PVCL terminé</th>
+          <th class="text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in stats_depts %}
+        <tr>
+          <td><span class="badge dept-{{ s.departement }} badge-dept">{{ s.departement }}</span></td>
+          <td class="text-center fw-bold">{{ s.nb_parcelles }}</td>
+          <td class="text-center">{{ s.superficie_levee|floatformat:2 }}</td>
+          <td class="text-center fw-bold">{{ s.nb_demandes }}</td>
+          <td class="text-center text-danger fw-bold">{{ s.nb_rdc_a_creer }}</td>
+          <td class="text-center text-warning fw-bold">{{ s.nb_rdc_encours }}</td>
+          <td class="text-center text-success fw-bold">{{ s.nb_rdc_termine }}</td>
+          <td class="text-center fw-bold" style="background:#FFFDE7">{{ s.superficie_enquetee|floatformat:2 }}</td>
+          <td class="text-center text-danger fw-bold">{{ s.nb_pvcl_a_creer }}</td>
+          <td class="text-center text-warning fw-bold">{{ s.nb_pvcl_encours }}</td>
+          <td class="text-center text-success fw-bold">{{ s.nb_pvcl_termine }}</td>
+          <td class="text-center">
+            <a href="{% url 'departement' session.pk s.departement %}" class="btn btn-xs btn-sm btn-outline-primary" style="font-size:.72rem">Analyser</a>
+          </td>
+        </tr>
+        {% endfor %}
+        {% with s=stat %}
+        <tr class="fw-bold" style="background:var(--gris)">
+          <td><span class="badge dept-NAWA badge-dept">NAWA TOTAL</span></td>
+          <td class="text-center">{{ s.nb_parcelles }}</td>
+          <td class="text-center">{{ s.superficie_levee|floatformat:2 }}</td>
+          <td class="text-center">{{ s.nb_demandes }}</td>
+          <td class="text-center text-danger">{{ s.nb_rdc_a_creer }}</td>
+          <td class="text-center text-warning">{{ s.nb_rdc_encours }}</td>
+          <td class="text-center text-success">{{ s.nb_rdc_termine }}</td>
+          <td class="text-center" style="background:#FFF8E1">{{ s.superficie_enquetee|floatformat:2 }}</td>
+          <td class="text-center text-danger">{{ s.nb_pvcl_a_creer }}</td>
+          <td class="text-center text-warning">{{ s.nb_pvcl_encours }}</td>
+          <td class="text-center text-success">{{ s.nb_pvcl_termine }}</td>
+          <td></td>
+        </tr>
+        {% endwith %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+fetch("{% url 'api_stats' session.pk %}").then(r=>r.json()).then(d=>{
+  const colors=['#2E75B6','#70AD47','#FFC000'];
+  new Chart(document.getElementById('chartRDC'),{type:'doughnut',
+    data:{labels:d.labels,datasets:[{data:d.rdc_termine,backgroundColor:colors,borderWidth:2}]},
+    options:{plugins:{legend:{position:'bottom'}},cutout:'60%'}
+  });
+  new Chart(document.getElementById('chartPVCL'),{type:'doughnut',
+    data:{labels:d.labels,datasets:[{data:d.pvcl_termine,backgroundColor:colors,borderWidth:2}]},
+    options:{plugins:{legend:{position:'bottom'}},cutout:'60%'}
+  });
+});
+</script>
+{% endblock %}

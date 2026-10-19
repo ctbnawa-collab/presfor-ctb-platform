@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ titre }} — PRESFOR CTB{% endblock %}
+{% block content %}
+<div class="card" style="max-width:560px">
+  <div class="card-body p-4">
+    <h5 class="mb-3"><i class="fa fa-triangle-exclamation text-warning me-2"></i>{{ question }}</h5>
+    <p class="text-muted small">Cette action est définitive.</p>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button class="btn btn-danger btn-sm px-3">Supprimer</button>
+      <a href="{% url retour %}" class="btn btn-outline-secondary btn-sm px-3">Annuler</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

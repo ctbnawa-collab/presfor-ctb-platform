@@ -1,0 +1,39 @@
+{# Section « Filtre par date » — commune aux vues d'instruction #}
+<div class="filtres mb-3">
+  <form method="get" class="row g-2 align-items-end">
+    {% for cle, val in request.GET.items %}{% if cle != 'd1' and cle != 'd2' and cle != 'base' %}
+    <input type="hidden" name="{{ cle }}" value="{{ val }}">{% endif %}{% endfor %}
+    <div class="col-auto">
+      <label class="form-label mb-1 small text-muted"><i class="fa fa-calendar-days me-1"></i>Du</label>
+      <input type="date" name="d1" value="{{ d1 }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+      <label class="form-label mb-1 small text-muted">Au</label>
+      <input type="date" name="d2" value="{{ d2 }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label mb-1 small text-muted">Date prise en compte</label>
+      <select name="base" class="form-select form-select-sm">
+        {% for code, lib in bases_date %}
+        <option value="{{ code }}" {% if base == code %}selected{% endif %}>{{ lib }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary btn-sm px-3"><i class="fa fa-filter me-1"></i>Filtrer</button>
+    </div>
+    {% if filtre_date_actif %}
+    <div class="col-auto">
+      <a href="?" class="btn btn-outline-secondary btn-sm">Tout afficher</a>
+    </div>
+    {% endif %}
+    <div class="col-auto ms-auto small text-muted">
+      {% if filtre_date_actif %}
+        <span class="badge bg-primary-subtle text-primary-emphasis">Période active</span>
+        {{ compteurs.total }} demande(s) retenue(s)
+      {% else %}
+        Aucune restriction de date
+      {% endif %}
+    </div>
+  </form>
+</div>

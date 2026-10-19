@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block title %}Rendement des levés — PRESFOR CTB{% endblock %}
+{% block fil %}Production quotidienne par agent, calculée sur la base terrain{% endblock %}
+{% block actions %}
+{% if not erreur %}<a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-primary"><i class="fa fa-file-csv me-1"></i>Exporter</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+{% include "terrain/_periode.html" %}
+
+{% if erreur %}
+<div class="alert alert-danger">
+  <strong><i class="fa fa-database me-2"></i>Base terrain injoignable</strong>
+  <div class="small mt-1">{{ erreur }}</div>
+  <a href="{% url 'terrain_connexion' %}" class="btn btn-sm btn-outline-danger mt-2">Vérifier la connexion</a>
+</div>
+{% else %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-vector-square"></i></div>
+    <div class="val">{{ nb_parcelles }}</div><div class="lbl">parcelles levées</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric vert">
+    <div class="ico text-success"><i class="fa fa-ruler-combined"></i></div>
+    <div class="val">{{ surface_totale|floatformat:0 }}</div><div class="lbl">hectares levés</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric bleu2">
+    <div class="ico text-primary"><i class="fa fa-user-group"></i></div>
+    <div class="val">{{ nb_agents }}</div><div class="lbl">agents sur le terrain</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-secondary"><i class="fa fa-calendar-day"></i></div>
+    <div class="val">{{ nb_jours_actifs }}</div><div class="lbl">jours de production</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric or">
+    <div class="ico text-warning"><i class="fa fa-gauge"></i></div>
+    <div class="val">{{ moyenne_jour }}</div><div class="lbl">parcelles / jour</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-info"><i class="fa fa-chart-area"></i></div>
+    <div class="val">{{ surface_moyenne }}</div><div class="lbl">ha / parcelle</div></div></div>
+</div>
+
+{% if nb_agents_inconnus %}
+<div class="alert alert-warning py-2 small d-flex justify-content-between align-items-center">
+  <span><i class="fa fa-user-plus me-2"></i>
+    {{ nb_agents_inconnus }} identifiant(s) machine ne correspondent à aucun agent enregistré.
+    Le rendement s'affiche alors sous le numéro de machine.</span>
+  <a href="{% url 'agents_importer' %}" class="btn btn-sm btn-warning">Compléter la fiche des agents</a>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-7"><div class="card h-100">
+    <div class="card-header">Production quotidienne</div>
+    <div class="card-body"><canvas id="graphJours" height="120"></canvas></div>
+  </div></div>
+  <div class="col-lg-5"><div class="card h-100">
+    <div class="card-header">Classement des agents (15 premiers)</div>
+    <div class="card-body"><canvas id="graphAgents" height="180"></canvas></div>
+  </div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Rendement par agent</div>
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm table-hover mb-0">
+      <thead><tr>
+        <th>Agent</th><th>Machine</th><th>Fonction</th><th>Département</th>
+        <th class="text-end">Parcelles</th><th class="text-end">Surface (ha)</th>
+        <th class="text-end">Jours</th><th class="text-end">Moy./jour</th>
+        <th style="width:130px">Atteinte objectif</th><th class="text-end">Conformité</th><th class="text-end">Villages</th>
+      </tr></thead>
+      <tbody>
+      {% for a in agents %}
+      <tr>
+        <td>
+          {% if a.agent %}<a href="{% url 'rendement_agent' a.agent.pk %}"><strong>{{ a.nom }}</strong></a>
+          {% else %}<span class="text-muted">{{ a.nom }}</span>
+            <span class="badge bg-warning-subtle text-warning-emphasis ms-1" style="font-size:.62rem">non enregistré</span>{% endif %}
+        </td>
+        <td><code class="small">{{ a.id_machine }}</code></td>
+        <td class="small text-muted">{{ a.fonction }}</td>
+        <td><span class="badge-dept dept-{{ a.departement }}">{{ a.departement }}</span></td>
+        <td class="text-end fw-semibold">{{ a.nb_parcelles }}</td>
+        <td class="text-end">{{ a.surface_ha }}</td>
+        <td class="text-end">{{ a.nb_jours }}</td>
+        <td class="text-end">{{ a.moyenne_jour }}</td>
+        <td>
+          <div class="jauge"><span style="width:{% if a.taux_objectif > 100 %}100{% else %}{{ a.taux_objectif|unlocalize }}{% endif %}%;
+            background:{% if a.taux_objectif >= 90 %}var(--vert2){% elif a.taux_objectif >= 60 %}var(--or){% else %}var(--rouge){% endif %}"></span></div>
+          <div class="small text-muted mt-1">{{ a.taux_objectif }}% de {{ a.objectif }}/j</div>
+        </td>
+        <td class="text-end {% if a.taux_conformite < 80 %}gravite-erreur{% endif %}">{{ a.taux_conformite }}%</td>
+        <td class="text-end">{{ a.nb_villages }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="11" class="vide"><i class="fa fa-inbox"></i>Aucun levé sur cette période.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header">Synthèse par département</div>
+    <div class="card-body p-0">
+      <table class="table table-sm tbl-sm mb-0">
+        <thead><tr><th>Département</th><th class="text-end">Parcelles</th><th class="text-end">Surface</th>
+                   <th class="text-end">Agents</th><th class="text-end">Villages</th><th class="text-end">Score</th></tr></thead>
+        <tbody>
+        {% for d in depts %}
+        <tr><td><span class="badge-dept dept-{{ d.departement }}">{{ d.departement }}</span></td>
+            <td class="text-end fw-semibold">{{ d.nb_parcelles }}</td>
+            <td class="text-end">{{ d.surface_ha }}</td>
+            <td class="text-end">{{ d.nb_agents }}</td>
+            <td class="text-end">{{ d.nb_villages }}</td>
+            <td class="text-end">{{ d.score }}</td></tr>
+        {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucune donnée</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div></div>
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header">Journal de production</div>
+    <div class="card-body p-0" style="max-height:340px;overflow:auto">
+      <table class="table table-sm tbl-sm mb-0">
+        <thead><tr><th>Jour</th><th class="text-end">Parcelles</th><th class="text-end">Surface</th>
+                   <th class="text-end">Agents</th><th class="text-end">Moy./agent</th><th class="text-end">Conformité</th></tr></thead>
+        <tbody>
+        {% for j in jours reversed %}
+        <tr><td>{{ j.jour|date:"D d/m/Y" }}</td>
+            <td class="text-end fw-semibold">{{ j.nb_parcelles }}</td>
+            <td class="text-end">{{ j.surface_ha }}</td>
+            <td class="text-end">{{ j.nb_agents }}</td>
+            <td class="text-end">{{ j.moyenne_agent }}</td>
+            <td class="text-end">{{ j.taux_conformite }}%</td></tr>
+        {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucune donnée</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not erreur %}
+<script>
+const jours = {{ graph_jours|safe }}, prod = {{ graph_parcelles|safe }}, agts = {{ graph_agents|safe }};
+new Chart(document.getElementById('graphJours'), {
+  data: {
+    labels: jours,
+    datasets: [
+      {type:'bar', label:'Parcelles levées', data:prod, backgroundColor:'#2E75B6', borderRadius:3, order:2},
+      {type:'line', label:'Agents actifs', data:agts, borderColor:'#70AD47', backgroundColor:'#70AD47',
+       tension:.3, yAxisID:'y2', pointRadius:2, order:1}
+    ]
+  },
+  options: {responsive:true, plugins:{legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}}},
+    scales:{y:{beginAtZero:true, title:{display:true, text:'Parcelles'}},
+            y2:{position:'right', beginAtZero:true, grid:{drawOnChartArea:false}, title:{display:true, text:'Agents'}}}}
+});
+new Chart(document.getElementById('graphAgents'), {
+  type:'bar',
+  data:{labels:{{ graph_noms|safe }}, datasets:[{label:'Parcelles levées', data:{{ graph_prod|safe }},
+        backgroundColor:'#41A0C4', borderRadius:3}]},
+  options:{indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
+    scales:{x:{beginAtZero:true}, y:{ticks:{font:{size:10}}}}}
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Base terrain — PRESFOR CTB{% endblock %}
+{% block fil %}Connexion PostgreSQL / PostGIS{% endblock %}
+{% block actions %}
+<a href="{% url 'terrain_explorateur' %}" class="btn btn-sm btn-outline-primary">
+  <i class="fa fa-magnifying-glass-chart me-1"></i>Explorer les tables</a>
+{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header">État de la connexion</div>
+      <div class="card-body">
+        {% if ok %}
+        <div class="alert alert-success py-2 mb-3"><i class="fa fa-circle-check me-2"></i>{{ message }}</div>
+        {% else %}
+        <div class="alert alert-danger py-2 mb-3">
+          <strong><i class="fa fa-circle-xmark me-2"></i>Connexion impossible</strong>
+          <div class="small mt-1" style="word-break:break-word">{{ message }}</div>
+        </div>
+        <p class="small text-muted">
+          Vérifiez que le poste a accès au serveur, que le port est ouvert et que les
+          identifiants du fichier <code>.env</code> sont corrects. Le paquet
+          <code>psycopg2-binary</code> doit être installé.
+        </p>
+        {% endif %}
+        <table class="table table-sm tbl-sm mb-0">
+          <tr><th>Hôte</th><td>{{ config.hote }}</td></tr>
+          <tr><th>Port</th><td>{{ config.port }}</td></tr>
+          <tr><th>Base</th><td>{{ config.base }}</td></tr>
+          <tr><th>Utilisateur</th><td>{{ config.utilisateur }}</td></tr>
+          <tr><th>Mot de passe</th><td>{% if config.mot_de_passe_defini %}<span class="text-success">défini</span>{% else %}<span class="text-danger">absent du .env</span>{% endif %}</td></tr>
+          <tr><th>Colonne date borne</th><td><code>{{ colonne_date_borne }}</code></td></tr>
+          {% if details.postgis %}<tr><th>PostGIS</th><td>{{ details.postgis }}</td></tr>{% endif %}
+          {% if details.maintenant %}<tr><th>Heure serveur</th><td>{{ details.maintenant }}</td></tr>{% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    {% if plage %}
+    <div class="card mb-3">
+      <div class="card-header">Couverture des données de levé</div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-4"><div class="card-metric p-0"><div class="val">{{ plage.total }}</div><div class="lbl">parcelles en base</div></div></div>
+          <div class="col-4"><div class="card-metric p-0"><div class="val" style="font-size:1.2rem">{{ plage.premiere|date:"d/m/Y" }}</div><div class="lbl">premier levé</div></div></div>
+          <div class="col-4"><div class="card-metric p-0"><div class="val" style="font-size:1.2rem">{{ plage.derniere|date:"d/m/Y" }}</div><div class="lbl">dernier levé</div></div></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    <div class="card">
+      <div class="card-header">Tables disponibles <span class="text-muted fw-normal">({{ tables|length }})</span></div>
+      <div class="card-body p-0" style="max-height:420px;overflow:auto">
+        {% if tables %}
+        <table class="table table-sm tbl-sm table-hover mb-0">
+          <thead><tr><th>Table</th><th class="text-end">Colonnes</th><th></th></tr></thead>
+          <tbody>
+          {% for t in tables %}
+          <tr>
+            <td><code>{{ t.table_name }}</code></td>
+            <td class="text-end">{{ t.nb_colonnes }}</td>
+            <td class="text-end"><a href="{% url 'terrain_explorateur' %}?table={{ t.table_name }}" class="small">aperçu</a></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="vide"><i class="fa fa-database"></i>Aucune table lisible pour l'instant.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

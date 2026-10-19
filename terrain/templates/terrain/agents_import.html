@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Importer des agents — PRESFOR CTB{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Import d'un fichier</div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          {% for champ in form %}
+          <div class="mb-3">
+            {% if champ.name == 'remplacer' %}
+            <div class="form-check">{{ champ }}<label class="form-check-label ms-1">{{ champ.label }}</label></div>
+            {% else %}
+            <label class="form-label small fw-semibold">{{ champ.label }}</label>{{ champ }}
+            {% endif %}
+          </div>
+          {% endfor %}
+          <button class="btn btn-primary px-4">Importer</button>
+        </form>
+        <hr>
+        <p class="small text-muted mb-1"><strong>Colonnes reconnues</strong> (l'ordre et la casse importent peu) :</p>
+        <p class="small text-muted mb-0">
+          <code>id_machine</code>, <code>nom</code>, <code>prenoms</code>, <code>departement</code>,
+          <code>sous_prefecture</code>, <code>telephone</code>, <code>matricule</code>.
+          Une ligne sans identifiant machine est ignorée. Un agent existant portant le même
+          couple (machine, département) est mis à jour.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Reprise de la liste historique</div>
+      <div class="card-body">
+        <p class="small text-muted">
+          La liste d'agents figée dans le script d'analyse (<code>AGENT_MAP</code>, issue de
+          <code>numero_agent.xlsx</code>) peut être reprise en un clic. Les agents deviennent
+          alors modifiables depuis la plateforme, et les noms cessent d'être codés en dur.
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reprise">
+          <button class="btn btn-outline-primary"><i class="fa fa-arrow-right-arrow-left me-1"></i>Reprendre la liste historique</button>
+        </form>
+      </div>
+    </div>
+    {% if resume %}
+    <div class="card mt-3">
+      <div class="card-header">Résultat</div>
+      <div class="card-body">
+        <table class="table table-sm tbl-sm mb-0">
+          <tr><th>Lignes lues</th><td>{{ resume.lignes }}</td></tr>
+          <tr><th>Agents créés</th><td class="text-success fw-semibold">{{ resume.cree }}</td></tr>
+          <tr><th>Agents mis à jour</th><td>{{ resume.maj }}</td></tr>
+          <tr><th>Lignes ignorées</th><td class="text-warning">{{ resume.ignore }}</td></tr>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

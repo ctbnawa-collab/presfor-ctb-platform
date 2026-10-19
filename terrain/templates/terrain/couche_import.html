@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Importer une couche — PRESFOR CTB{% endblock %}
+{% block fil %}Shapefile compressé en .zip — la reprojection vers WGS84 est automatique{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card">
+    <div class="card-header">Couche à importer</div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for champ in form %}
+        <div class="mb-3" {% if champ.name == 'motif' %}id="bloc-motif"{% endif %}>
+          {% if champ.name == 'remplacer' %}
+          <div class="form-check">{{ champ }}<label class="form-check-label ms-1">{{ champ.label }}</label></div>
+          {% else %}
+          <label class="form-label small fw-semibold">{{ champ.label }}</label>{{ champ }}
+          {% endif %}
+          {% if champ.help_text %}<div class="form-text small">{{ champ.help_text }}</div>{% endif %}
+          {% for e in champ.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        {% endfor %}
+        <button class="btn btn-primary px-4"><i class="fa fa-upload me-1"></i>Importer</button>
+      </form>
+    </div>
+  </div>
+
+  {% if resume %}
+  <div class="card mt-3">
+    <div class="card-header">Résultat de l'import</div>
+    <div class="card-body">
+      <table class="table table-sm tbl-sm">
+        <tr><th>Objets dans la couche</th><td>{{ resume.total_couche }}</td></tr>
+        <tr><th>Importés</th><td class="text-success fw-semibold">{{ resume.importees }}</td></tr>
+        {% if resume.sans_geometrie %}<tr><th>Sans géométrie exploitable</th><td class="text-warning">{{ resume.sans_geometrie }}</td></tr>{% endif %}
+        <tr><th>Ignorés (code absent ou doublon)</th><td class="text-warning">{{ resume.ignorees }}</td></tr>
+        {% if resume.doublons %}
+        <tr><th>Codes déjà présents en base</th><td class="text-danger fw-semibold">{{ resume.doublons }}</td></tr>
+        {% endif %}
+        <tr><th>Système de coordonnées lu</th><td><code>{{ resume.crs }}</code></td></tr>
+      </table>
+      <details class="small">
+        <summary class="text-muted">Champs détectés dans le fichier ({{ resume.champs|length }})</summary>
+        <p class="mt-2 mb-0">{% for c in resume.champs %}<code class="me-1">{{ c }}</code>{% endfor %}</p>
+      </details>
+      <a href="{% url 'carte' %}" class="btn btn-sm btn-primary mt-3">
+        <i class="fa fa-map-location-dot me-1"></i>Voir sur la carte</a>
+    </div>
+  </div>
+  {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header">État des couches</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <tr><th>Parcelles publiées</th><td class="text-end fw-semibold">{{ nb_publiees }}</td></tr>
+          <tr><th>Parcelles à supprimer</th><td class="text-end fw-semibold">{{ nb_exclues }}</td></tr>
+          {% if doublons.codes %}
+          <tr><th class="text-danger">Codes en double</th>
+              <td class="text-end fw-semibold text-danger">{{ doublons.codes }}</td></tr>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+
+    {% if doublons.codes %}
+    <div class="card mb-3 border-warning">
+      <div class="card-header text-warning-emphasis">
+        <i class="fa fa-triangle-exclamation me-1"></i>Doublons détectés</div>
+      <div class="card-body">
+        <p class="small mb-3">
+          {{ doublons.codes }} code(s) parcelle apparaissent plusieurs fois, soit
+          <strong>{{ doublons.lignes_en_trop }} ligne(s) en trop</strong>. C'est le signe
+          d'un import lancé sans cocher « Remplacer la couche existante » : la nouvelle
+          couche s'est ajoutée à l'ancienne au lieu de la remplacer. Les compteurs et la
+          carte affichent donc chaque parcelle en double.
+        </p>
+        <form method="post" onsubmit="return confirm('Ne garder qu\'un enregistrement par code parcelle ?')">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="dedoublonner">
+          <button class="btn btn-warning btn-sm">
+            <i class="fa fa-broom me-1"></i>Nettoyer les doublons
+            ({{ doublons.lignes_en_trop }} ligne(s))</button>
+        </form>
+        <p class="small text-muted mt-2 mb-0">
+          L'enregistrement le plus récent est conservé pour chaque code.
+        </p>
+      </div>
+    </div>
+    {% endif %}
+    <div class="card">
+      <div class="card-header">Ce que fait l'import</div>
+      <div class="card-body small text-muted">
+        <p><strong>Projection.</strong> Le système est lu dans le fichier <code>.prj</code>.
+        Les couches du projet sont en <code>TMCI-5.5</code> (Transverse Mercator, méridien
+        central −5,5°, GRS80) : la conversion vers WGS84 est faite au moment de l'import,
+        car Leaflet ne comprend que les degrés. Toute autre Transverse Mercator est
+        également acceptée, ainsi que les couches déjà en degrés.</p>
+        <p><strong>Champs.</strong> Le format DBF tronque les noms à 10 caractères
+        (<code>DEPARTEMEN</code>, <code>Surface (h</code>). Le rapprochement se fait par
+        préfixe, il n'y a donc rien à renommer avant l'import.</p>
+        <p class="mb-0"><strong>Parcelles à supprimer.</strong> Importées comme liste
+        d'exclusion : les codes sont masqués sur la carte, dans le contrôle qualité, les
+        rendements et les statistiques, sans rien effacer de la base terrain.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function majBlocMotif(){
+  const sel = document.querySelector('[name="couche"]');
+  const bloc = document.getElementById('bloc-motif');
+  if (sel && bloc) bloc.style.display = (sel.value === 'exclusions') ? '' : 'none';
+}
+document.querySelector('[name="couche"]').addEventListener('change', majBlocMotif);
+majBlocMotif();
+</script>
+{% endblock %}

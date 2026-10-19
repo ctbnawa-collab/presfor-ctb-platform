@@ -1,0 +1,286 @@
+{% extends "analyse/base.html" %}
+{% load l10n %}
+{% block title %}{{ nom }} — PRESFOR CTB{% endblock %}
+{% block page_title %}<span class="badge dept-{{ nom }} badge-dept me-2">{{ nom }}</span> Analyse département{% endblock %}
+{% block fil %}Analyse « {{ session.nom }} »{% endblock %}
+{% block actions %}
+<a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-primary">
+  <i class="fa fa-file-csv me-1"></i>Exporter les demandes</a>
+{% endblock %}
+
+{% block content %}
+
+{% include "analyse/_filtre_date.html" %}
+
+<!-- Métriques -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-layer-group"></i></div>
+    <div class="val">{{ stat.nb_parcelles }}</div><div class="lbl">Parcelles levées</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="card card-metric">
+    <div class="ico text-success"><i class="fa fa-file-alt"></i></div>
+    <div class="val">{{ compteurs.total }}</div>
+    <div class="lbl">Demandes {% if filtre_date_actif %}sur la période{% else %}créées{% endif %}</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="card card-metric">
+    <div class="ico text-secondary"><i class="fa fa-ruler-combined"></i></div>
+    <div class="val">{{ stat.superficie_levee|floatformat:1 }}</div><div class="lbl">Superficie levée (ha)</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="card card-metric" style="background:#FFFDE7">
+    <div class="ico" style="color:var(--or)"><i class="fa fa-map-marked-alt"></i></div>
+    <div class="val" style="color:#E65100">{{ stat.superficie_enquetee|floatformat:1 }}</div>
+    <div class="lbl">Sup. enquêtée RDC (ha)</div>
+  </div></div>
+</div>
+
+<!-- Couverture des levés par les demandes -->
+{% if stat.nb_parcelles %}
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h6 class="fw-bold mb-0" style="color:var(--bleu)">
+        <i class="fa fa-link me-2"></i>Couverture des parcelles levées</h6>
+      <span class="small text-muted">
+        {{ stat.nb_parcelles_avec_demande }} parcelle(s) sur {{ stat.nb_parcelles }} levée(s)
+        ont donné lieu à une demande</span>
+    </div>
+    <div class="progress" style="height:12px;background:#f0f0f0">
+      <div class="progress-bar {% if stat.taux_couverture < 60 %}bg-danger{% elif stat.taux_couverture < 90 %}bg-warning{% else %}bg-success{% endif %}"
+           style="width:{{ stat.taux_couverture|unlocalize }}%">{{ stat.taux_couverture }} %</div>
+    </div>
+    {% if stat.nb_parcelles_sans_demande %}
+    <p class="small text-danger mt-2 mb-0">
+      <i class="fa fa-triangle-exclamation me-1"></i>
+      {{ stat.nb_parcelles_sans_demande }} parcelle(s) levée(s) n'ont encore aucune demande.
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Synthèse processus, recalculée sur le périmètre filtré -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-6">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-search me-2"></i>RDC</h6>
+      <div class="d-flex gap-1 mb-2 flex-wrap" style="font-size:.78rem">
+        <span class="badge bg-danger bg-opacity-75 px-2 py-1">À créer : {{ compteurs.rdc_a_creer }}</span>
+        <span class="badge bg-warning text-dark px-2 py-1">En cours : {{ compteurs.rdc_encours }}</span>
+        <span class="badge bg-success px-2 py-1">Terminé : {{ compteurs.rdc_termine }}</span>
+      </div>
+      <div class="progress" style="height:10px;background:#f0f0f0">
+        <div class="progress-bar bg-danger"  style="width:{% widthratio compteurs.rdc_a_creer compteurs.total 100 %}%"></div>
+        <div class="progress-bar bg-warning" style="width:{% widthratio compteurs.rdc_encours compteurs.total 100 %}%"></div>
+        <div class="progress-bar bg-success" style="width:{% widthratio compteurs.rdc_termine compteurs.total 100 %}%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-clipboard-check me-2"></i>PVCL</h6>
+      <div class="d-flex gap-1 mb-2 flex-wrap" style="font-size:.78rem">
+        <span class="badge bg-danger bg-opacity-75 px-2 py-1">À créer : {{ compteurs.pvcl_a_creer }}</span>
+        <span class="badge bg-warning text-dark px-2 py-1">En cours : {{ compteurs.pvcl_encours }}</span>
+        <span class="badge bg-success px-2 py-1">Terminé : {{ compteurs.pvcl_termine }}</span>
+      </div>
+      <div class="progress" style="height:10px;background:#f0f0f0">
+        <div class="progress-bar bg-danger"  style="width:{% widthratio compteurs.pvcl_a_creer compteurs.total 100 %}%"></div>
+        <div class="progress-bar bg-warning" style="width:{% widthratio compteurs.pvcl_encours compteurs.total 100 %}%"></div>
+        <div class="progress-bar bg-success" style="width:{% widthratio compteurs.pvcl_termine compteurs.total 100 %}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Étapes de la chaîne CF -->
+<div class="card mb-4">
+  <div class="card-header" style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)">
+      <i class="fa fa-diagram-project me-2"></i>Étapes de la chaîne CF</h6>
+  </div>
+  <div class="card-body">
+    <div class="row g-2">
+      {% for e in etapes_repartition %}
+      <div class="col-6 col-lg-3">
+        <a href="?d1={{ d1 }}&d2={{ d2 }}&base={{ base }}&etape={{ e.etape|urlencode }}"
+           class="d-block p-2 rounded-3 text-decoration-none etape-tuile"
+           style="background:{{ e.couleur }};{% if q_etape == e.etape %}outline:2px solid var(--bleu);{% endif %}">
+          <div class="fw-semibold" style="font-size:1.35rem;line-height:1">{{ e.nb }}</div>
+          <div style="font-size:.74rem;opacity:.9">{{ e.etape }}</div>
+          <div style="font-size:.68rem;opacity:.72">{{ e.pct }} %</div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Contrôle qualité des dossiers -->
+{% if remarques_frequentes %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+       style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)">
+      <i class="fa fa-clipboard-check me-2"></i>Contrôle qualité — motifs de blocage</h6>
+    <span class="small text-muted">
+      {{ compteurs.avec_remarque }} dossier(s) non terminé(s) sur {{ compteurs.total }}
+      {% if q_motif %}
+      · <a href="?d1={{ d1 }}&d2={{ d2 }}&base={{ base }}">retirer le filtre</a>
+      {% endif %}
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm table-hover mb-0">
+      <thead><tr><th style="width:70px">Volet</th><th>Motif</th>
+                 <th class="text-end" style="width:90px">Dossiers</th>
+                 <th style="width:180px">Part</th></tr></thead>
+      <tbody>
+      {% for r in remarques_frequentes %}
+      <tr class="{% if q_motif == r.motif %}table-active{% endif %}">
+        <td><span class="badge {% if r.volet == 'PVCL' %}bg-primary-subtle text-primary-emphasis{% else %}bg-success-subtle text-success-emphasis{% endif %}">{{ r.volet }}</span></td>
+        <td><a href="?d1={{ d1 }}&d2={{ d2 }}&base={{ base }}&motif={{ r.motif|urlencode }}">{{ r.motif }}</a></td>
+        <td class="text-end fw-semibold">{{ r.nb }}</td>
+        <td>
+          <div class="progress" style="height:7px;background:#eef2f6">
+            <div class="progress-bar {% if r.pct > 50 %}bg-danger{% elif r.pct > 20 %}bg-warning{% else %}bg-info{% endif %}"
+                 style="width:{{ r.pct|unlocalize }}%"></div></div>
+          <span class="small text-muted">{{ r.pct }} % des dossiers</span>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-muted">
+    Cliquez un motif pour n'afficher que les dossiers concernés. Les intitulés sont
+    ceux du rapport de contrôle qualité.
+  </div>
+</div>
+{% endif %}
+
+<!-- Tableau des demandes -->
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-2 flex-wrap" style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)"><i class="fa fa-table me-2"></i>Demandes ({{ total }})</h6>
+    <form method="get" class="d-flex gap-2 ms-auto flex-wrap">
+      <input type="hidden" name="d1" value="{{ d1 }}">
+      <input type="hidden" name="d2" value="{{ d2 }}">
+      <input type="hidden" name="base" value="{{ base }}">
+      <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm"
+             style="width:200px" placeholder="N° demande, parcelle, nom, village">
+      <select name="etape" class="form-select form-select-sm" style="width:170px" onchange="this.form.submit()">
+        <option value="">Toutes les étapes</option>
+        {% for e in etapes %}<option {% if q_etape == e %}selected{% endif %} value="{{ e }}">{{ e }}</option>{% endfor %}
+      </select>
+      <select name="pvcl" class="form-select form-select-sm" style="width:140px" onchange="this.form.submit()">
+        <option value="">Statut PVCL</option>
+        {% for s in statuts_pvcl %}<option {% if q_pvcl == s %}selected{% endif %} value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      <select name="rdc" class="form-select form-select-sm" style="width:140px" onchange="this.form.submit()">
+        <option value="">Statut RDC</option>
+        {% for s in statuts_rdc %}<option {% if q_rdc == s %}selected{% endif %} value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      <select name="sp" class="form-select form-select-sm" style="width:150px" onchange="this.form.submit()">
+        <option value="">Sous-préfecture</option>
+        {% for s in sp_list %}<option {% if q_sp == s %}selected{% endif %} value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      <input type="hidden" name="motif" value="{{ q_motif }}">
+      <select name="remarque" class="form-select form-select-sm" style="width:150px" onchange="this.form.submit()">
+        <option value="">Toutes</option>
+        <option value="1" {% if q_remarque == '1' %}selected{% endif %}>Avec remarque</option>
+      </select>
+      <button class="btn btn-sm btn-primary"><i class="fa fa-magnifying-glass"></i></button>
+      {% if q_sp or q_etape or q_pvcl or q_rdc or q or q_remarque or q_motif %}
+      <a href="?d1={{ d1 }}&d2={{ d2 }}&base={{ base }}" class="btn btn-sm btn-outline-secondary"><i class="fa fa-times"></i></a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if compteurs.avec_remarque %}
+  <div class="px-3 pt-2 small text-muted">
+    <i class="fa fa-circle-info me-1"></i>{{ compteurs.avec_remarque }} demande(s) non terminée(s)
+    portent une remarque. Survolez le triangle pour un aperçu, cliquez le numéro de dossier
+    ou « voir » pour la liste complète des motifs.
+  </div>
+  {% endif %}
+
+  <div class="table-responsive">
+    <table class="table table-hover table-sm tbl-sm mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>N° Demande</th><th>Nom</th><th>Sous-pref</th><th>Village</th>
+          <th>N° Parcelle</th><th>Type</th><th>Statut PVCL</th><th>Statut RDC</th>
+          <th>Étape</th><th>Demande</th><th>Fin PVCL</th><th>Fin RDC</th>
+          <th>Surface</th><th>Remarque</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in demandes %}
+        <tr>
+          <td class="font-monospace" style="font-size:.75rem">
+            <a href="{% url 'demande_detail' d.pk %}" title="Ouvrir la fiche du dossier">{{ d.num_demande }}</a></td>
+          <td>{{ d.nom }} {{ d.prenom }}</td>
+          <td>{{ d.sous_prefecture }}</td>
+          <td>{{ d.village }}</td>
+          <td class="fw-semibold">{{ d.num_parcelle }}</td>
+          <td><span class="badge bg-secondary">{{ d.type_certificat }}</span></td>
+          <td>
+            {% if d.statut_pvcl == "Pvcl terminé" %}<span class="badge bg-success badge-etape">{{ d.statut_pvcl }}</span>
+            {% elif d.statut_pvcl == "Pvcl en cours" %}<span class="badge bg-warning text-dark badge-etape">{{ d.statut_pvcl }}</span>
+            {% else %}<span class="badge bg-light text-muted badge-etape">{{ d.statut_pvcl }}</span>{% endif %}
+          </td>
+          <td>
+            {% if d.statut_rdc == "RDC terminé" %}<span class="badge bg-success badge-etape">{{ d.statut_rdc }}</span>
+            {% elif d.statut_rdc == "RDC encours" %}<span class="badge bg-warning text-dark badge-etape">{{ d.statut_rdc }}</span>
+            {% else %}<span class="badge bg-light text-muted badge-etape">{{ d.statut_rdc }}</span>{% endif %}
+          </td>
+          <td><span class="badge badge-etape etape-tuile"
+                    style="background:{{ d.couleur_etape }}">{{ d.etape }}</span></td>
+          <td class="small">{{ d.date_creation|default:"—" }}</td>
+          <td class="small">{{ d.date_pvcl_fin|default:"—" }}</td>
+          <td class="small">{{ d.date_rdc_fin|default:"—" }}</td>
+          <td>{% if d.surface %}{{ d.surface|floatformat:2 }}{% endif %}</td>
+          <td class="cellule-remarque">
+            {% if d.motifs %}
+            <ul class="liste-motifs">
+              {% for m in d.motifs|slice:":3" %}<li>{{ m }}</li>{% endfor %}
+            </ul>
+            {% if d.motifs|length > 3 %}
+            <a href="{% url 'demande_detail' d.pk %}" class="small">
+              +{{ d.motifs|length|add:"-3" }} autre(s) motif(s)</a>
+            {% else %}
+            <a href="{% url 'demande_detail' d.pk %}" class="small text-muted">fiche du dossier</a>
+            {% endif %}
+            {% else %}<span class="text-success"><i class="fa fa-check me-1"></i>RAS</span>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="14" class="text-center text-muted py-4">
+          Aucune demande ne correspond à ces filtres.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total > 500 %}
+  <div class="card-footer text-muted small">
+    Affichage limité à 500 lignes sur {{ total }} — utilisez l'export CSV pour la liste complète.</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+.cellule-remarque{max-width:340px;min-width:230px;}
+.liste-motifs{margin:0 0 3px;padding-left:15px;list-style:none;}
+.liste-motifs li{position:relative;font-size:.76rem;line-height:1.35;color:#7a4b00;
+  margin-bottom:2px;}
+.liste-motifs li::before{content:"▸";position:absolute;left:-13px;color:var(--or);}
+.etape-tuile{color:#243746;}
+.etape-tuile[style*="#2E75B6"],.etape-tuile[style*="#375623"]{color:#fff!important;}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(e => new bootstrap.Tooltip(e));
+</script>
+{% endblock %}

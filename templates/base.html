@@ -1,0 +1,238 @@
+{% load static %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ APP_NOM }} — {{ APP_SOUS_TITRE }}{% endblock %}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{
+  --bleu:#123A5E; --bleu2:#2E75B6; --bleu3:#41A0C4;
+  --vert:#4E8C33; --vert2:#70AD47; --or:#E0A800; --rouge:#C0392B;
+  --gris:#F0F4F8; --texte:#243746;
+}
+*{scroll-behavior:smooth}
+body{background:#f4f6fa;font-family:'Segoe UI',system-ui,sans-serif;color:var(--texte);}
+
+/* ── Barre latérale ── */
+.sidebar{width:252px;min-height:100vh;background:linear-gradient(180deg,#123A5E 0%,#0D2B46 100%);
+  position:fixed;top:0;left:0;z-index:100;overflow-y:auto;}
+.sidebar .brand{padding:18px 18px 16px;color:#fff;border-bottom:1px solid rgba(255,255,255,.12);
+  display:flex;align-items:center;gap:11px;}
+.sidebar .brand .sigle{background:var(--vert2);width:38px;height:38px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;
+  letter-spacing:.02em;flex:none;}
+.sidebar .brand .nom{font-weight:700;font-size:1.02rem;line-height:1.15;}
+.sidebar .brand .nom small{display:block;font-size:.68rem;font-weight:400;opacity:.72;margin-top:2px;}
+.sidebar .nav-link{color:rgba(255,255,255,.78);padding:8px 16px;border-radius:7px;margin:1px 9px;
+  font-size:.855rem;transition:background .15s,color .15s;display:flex;align-items:center;}
+.sidebar .nav-link:hover{background:rgba(255,255,255,.1);color:#fff;}
+.sidebar .nav-link.active{background:rgba(112,173,71,.28);color:#fff;font-weight:600;
+  box-shadow:inset 3px 0 0 var(--vert2);}
+.sidebar .nav-link i{width:21px;text-align:center;margin-right:9px;font-size:.88rem;opacity:.9;}
+.sidebar .nav-link .compteur{margin-left:auto;background:rgba(255,255,255,.16);border-radius:9px;
+  padding:1px 7px;font-size:.68rem;}
+.sidebar .section-title{color:rgba(255,255,255,.42);font-size:.665rem;text-transform:uppercase;
+  letter-spacing:.09em;padding:15px 18px 5px;margin:0;font-weight:600;}
+.sidebar .pied{padding:14px 18px 22px;color:rgba(255,255,255,.4);font-size:.68rem;line-height:1.5;
+  border-top:1px solid rgba(255,255,255,.1);margin-top:12px;}
+
+/* ── Zone principale ── */
+.main{margin-left:252px;padding:22px;}
+.topbar{background:rgba(255,255,255,.94);backdrop-filter:blur(6px);
+  border-bottom:1px solid #e5eaf0;margin:-22px -22px 22px;padding:13px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:1020;}
+.topbar h1{font-size:1.14rem;font-weight:650;color:var(--bleu);margin:0;}
+.topbar .fil{font-size:.74rem;color:#8a97a6;margin-top:1px;}
+
+/* ── Cartes ── */
+.card{border:none;border-radius:11px;box-shadow:0 1px 3px rgba(18,58,94,.09);
+  transition:box-shadow .18s;}
+.card:hover{box-shadow:0 2px 10px rgba(18,58,94,.13);}
+.card-header{background:#fff;border-bottom:1px solid #eef2f6;font-weight:620;font-size:.9rem;
+  color:var(--bleu);border-radius:11px 11px 0 0;padding:12px 16px;}
+.card-metric{text-align:center;padding:17px 12px;}
+.card-metric .val{font-size:1.95rem;font-weight:700;color:var(--bleu);line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.card-metric .lbl{font-size:.735rem;color:#7d8b99;margin-top:5px;}
+.card-metric .ico{font-size:1.25rem;margin-bottom:7px;opacity:.85;}
+.card-metric.vert .val{color:var(--vert);} .card-metric.or .val{color:var(--or);}
+.card-metric.rouge .val{color:var(--rouge);} .card-metric.bleu2 .val{color:var(--bleu2);}
+
+/* ── Badges & tableaux ── */
+.badge-dept{border-radius:20px;padding:3px 11px;font-size:.72rem;font-weight:600;}
+.dept-SOUBRE{background:#E8F1F8;color:#123A5E;} .dept-MEAGUI{background:#E9F5E9;color:#2E7D32;}
+.dept-BUYO{background:#FFF6E0;color:#B26A00;}   .dept-NAWA{background:#F1E9F7;color:#5B2A86;}
+.progress{height:7px;border-radius:4px;background:#e8eef4;}
+.tbl-sm td,.tbl-sm th{font-size:.805rem;padding:6px 10px;vertical-align:middle;}
+.tbl-sm thead th{background:#f7f9fc;color:#5c6b7a;font-weight:620;font-size:.735rem;
+  text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid #e5eaf0;
+  position:sticky;top:0;z-index:2;}
+.tbl-sm td{font-variant-numeric:tabular-nums;}
+.table-hover tbody tr{transition:background .12s;}
+.table-hover tbody tr:hover{background:#f7fafd;}
+.stat-row{border-left:4px solid var(--bleu2);padding:9px 15px;background:#fff;border-radius:0 8px 8px 0;margin-bottom:7px;}
+.stat-row.yellow{border-color:var(--or);background:#FFFDF0;}
+.stat-row .val{font-size:1.4rem;font-weight:700;color:var(--bleu);}
+.stat-row .lbl{font-size:.78rem;color:#5c6b7a;}
+.badge-etape{font-size:.7rem;border-radius:10px;}
+.pastille{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;}
+.pastille.err{background:var(--rouge);} .pastille.ale{background:var(--or);}
+.pastille.ok{background:var(--vert2);}
+.gravite-erreur{color:var(--rouge);font-weight:600;}
+.gravite-alerte{color:#B26A00;font-weight:600;}
+.jauge{width:100%;height:9px;background:#e8eef4;border-radius:5px;overflow:hidden;}
+.jauge span{display:block;height:100%;border-radius:5px;}
+.filtres{background:#fff;border-radius:11px;padding:13px 16px;margin-bottom:18px;
+  box-shadow:0 1px 3px rgba(18,58,94,.09);}
+.form-control,.form-select{border-color:#dde4ec;font-size:.86rem;}
+.form-control:focus,.form-select:focus{border-color:var(--bleu3);
+  box-shadow:0 0 0 .18rem rgba(65,160,196,.18);}
+.btn{font-weight:520;}
+.dropdown-menu{border:none;border-radius:11px;box-shadow:0 6px 24px rgba(18,58,94,.18);}
+.couche-ligne{padding:3px 0;border-radius:5px;}
+.couche-ligne:hover{background:#f4f7fb;}
+.badge{font-weight:600;}
+.vide{text-align:center;padding:44px 20px;color:#8a97a6;}
+.vide i{font-size:2.2rem;opacity:.35;display:block;margin-bottom:12px;}
+a{text-decoration:none;}
+
+/* ── Barre de navigation verticale ── */
+.nav-verticale{position:fixed;right:14px;bottom:22px;z-index:1030;display:flex;
+  flex-direction:column;gap:1px;background:#fff;border-radius:9px;overflow:hidden;
+  box-shadow:0 2px 10px rgba(18,58,94,.22);}
+.nav-verticale button{border:none;background:#fff;color:var(--bleu);width:36px;height:33px;
+  font-size:.8rem;cursor:pointer;transition:background .15s,color .15s;}
+.nav-verticale button:hover{background:var(--bleu);color:#fff;}
+.nav-verticale button:focus-visible{outline:2px solid var(--vert2);outline-offset:-2px;}
+@media (max-width:900px){.nav-verticale{right:8px;bottom:12px;}}
+@media print{.nav-verticale{display:none;}}
+@media (max-width:900px){
+  .sidebar{position:static;width:100%;min-height:0;}
+  .main{margin-left:0;}
+  .topbar{margin:-22px -22px 18px;}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+{% block extra_css %}{% endblock %}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="brand">
+    <div class="sigle">PCF</div>
+    <div class="nom">{{ APP_NOM }}<small>{{ APP_SOUS_TITRE }}</small></div>
+  </div>
+  <nav class="mt-1 pb-2">
+    <p class="section-title">Pilotage</p>
+    <a href="{% url 'global_activite' %}" class="nav-link {% if request.resolver_match.url_name == 'global_activite' %}active{% endif %}">
+      <i class="fa fa-gauge-high"></i> Activité globale</a>
+    <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <i class="fa fa-chart-pie"></i> Tableau de bord</a>
+
+    <p class="section-title">Instruction des demandes</p>
+    <a href="{% url 'upload' %}" class="nav-link {% if request.resolver_match.url_name == 'upload' %}active{% endif %}">
+      <i class="fa fa-file-import"></i> Nouvelle analyse CSV</a>
+    {% if session %}
+    <a href="{% url 'session_detail' session.pk %}" class="nav-link {% if request.resolver_match.url_name == 'session_detail' %}active{% endif %}">
+      <i class="fa fa-table-list"></i> Vue d'ensemble</a>
+    <a href="{% url 'region_nawa' session.pk %}" class="nav-link {% if request.resolver_match.url_name == 'region_nawa' %}active{% endif %}">
+      <i class="fa fa-earth-africa"></i> Région NAWA</a>
+    {% for d in departements %}
+    <a href="{% url 'departement' session.pk d %}" class="nav-link {% if nom == d %}active{% endif %}">
+      <i class="fa fa-location-dot"></i> {{ d }}</a>
+    {% endfor %}
+    {% endif %}
+
+    <p class="section-title">Cartographie</p><a href="{% url 'carte_geoserver' %}" class="nav-link"><i class="fa fa-map"></i> Carte GeoServer</a>
+    <a href="{% url 'carte' %}" class="nav-link {% if request.resolver_match.url_name == 'carte' %}active{% endif %}">
+      <i class="fa fa-map-location-dot"></i> Carte des parcelles</a>
+    <a href="{% url 'publicite' %}" style="padding-left:38px" class="nav-link {% if request.resolver_match.url_name == 'publicite' %}active{% endif %}">
+      <i class="fa fa-bullhorn"></i> Parcelles en publicité</a>
+    <a href="{% url 'exclusions' %}" style="padding-left:38px" class="nav-link {% if request.resolver_match.url_name == 'exclusions' %}active{% endif %}">
+      <i class="fa fa-eye-slash"></i> Parcelles à supprimer</a>
+    <a href="{% url 'importer_couche' %}" class="nav-link {% if request.resolver_match.url_name == 'importer_couche' %}active{% endif %}">
+      <i class="fa fa-layer-group"></i> Importer une couche</a>
+
+    <p class="section-title">Rendement</p><a href="{% url 'performance_daily' %}" class="nav-link"><i class="fa fa-chart-line"></i> Rendement journalier</a><a href="{% url 'performance' %}" class="nav-link"><i class="fa fa-chart-line"></i> Rendement hebdomadaire</a><a href="{% url 'performance_monthly' %}" class="nav-link"><i class="fa fa-chart-line"></i> Rendement mensuel</a><p class="section-title">Terrain &amp; qualité</p>
+    <a href="{% url 'controle_qualite' %}" class="nav-link {% if request.resolver_match.url_name == 'controle_qualite' %}active{% endif %}">
+      <i class="fa fa-clipboard-check"></i> Contrôle qualité</a>
+    <a href="{% url 'terrain_connexion' %}" class="nav-link {% if request.resolver_match.url_name == 'terrain_connexion' %}active{% endif %}">
+      <i class="fa fa-database"></i> Base terrain</a>
+    <a href="{% url 'terrain_explorateur' %}" class="nav-link {% if request.resolver_match.url_name == 'terrain_explorateur' %}active{% endif %}">
+      <i class="fa fa-magnifying-glass-chart"></i> Explorateur</a>
+
+    <p class="section-title">Opposition &amp; litige</p>
+    <a href="{% url 'oppositions_rendement' %}" class="nav-link {% if request.resolver_match.url_name == 'oppositions_rendement' %}active{% endif %}">
+      <i class="fa fa-chart-column"></i> Rendement</a>
+
+    <p class="section-title">Référentiels</p><a href="{% url 'referentiel_rendement' %}" class="nav-link"><i class="fa fa-users"></i> Agents et superviseurs</a>
+    <a href="{% url 'agents' %}" class="nav-link {% if request.resolver_match.url_name == 'agents' %}active{% endif %}">
+      <i class="fa fa-user-group"></i> Agents</a>
+  </nav>
+  <div class="pied">{{ APP_PROJET }}<br>Région NAWA — Côte d'Ivoire</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>{% block page_title %}{{ titre|default:APP_NOM }}{% endblock %}</h1>
+      <div class="fil">{% block fil %}{% endblock %}</div>
+    </div>
+    <div class="d-flex gap-2">{% block actions %}{% endblock %}</div>
+  </div>
+  {% for msg in messages %}
+  <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} alert-dismissible fade show mb-3" role="alert">
+    {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+  </div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</div>
+
+<nav class="nav-verticale" aria-label="Navigation dans la page">
+  <button type="button" onclick="allerEn('haut')" title="Haut de page" aria-label="Haut de page">
+    <i class="fa fa-angles-up"></i></button>
+  <button type="button" onclick="defiler(-1)" title="Section précédente" aria-label="Section précédente">
+    <i class="fa fa-chevron-up"></i></button>
+  <button type="button" onclick="defiler(1)" title="Section suivante" aria-label="Section suivante">
+    <i class="fa fa-chevron-down"></i></button>
+  <button type="button" onclick="allerEn('bas')" title="Bas de page" aria-label="Bas de page">
+    <i class="fa fa-angles-down"></i></button>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Navigation verticale ────────────────────────────────────────────────────
+function allerEn(ou) {
+  window.scrollTo({top: ou === 'bas' ? document.body.scrollHeight : 0,
+                   behavior: 'smooth'});
+}
+
+function defiler(sens) {
+  const reperes = [...document.querySelectorAll('.main .card, .main .filtres, .main h6')]
+    .filter(e => e.offsetParent !== null);
+  const y = window.scrollY + 90;
+  const cibles = reperes.map(e => e.getBoundingClientRect().top + window.scrollY);
+  const suivante = sens > 0
+    ? cibles.find(t => t > y + 20)
+    : [...cibles].reverse().find(t => t < y - 20);
+  window.scrollTo({top: suivante !== undefined ? suivante - 80
+                        : (sens > 0 ? document.body.scrollHeight : 0),
+                   behavior: 'smooth'});
+}
+
+function majNavVerticale() {
+  const barre = document.querySelector('.nav-verticale');
+  if (!barre) return;
+  const utile = document.body.scrollHeight > window.innerHeight + 220;
+  barre.style.display = utile ? 'flex' : 'none';
+}
+window.addEventListener('scroll', majNavVerticale, {passive: true});
+window.addEventListener('resize', majNavVerticale);
+majNavVerticale();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ titre }} — PRESFOR CTB{% endblock %}
+{% block fil %}L'identifiant machine doit correspondre exactement à <code>id_machine</code> dans la base terrain{% endblock %}
+{% block content %}
+<div class="card" style="max-width:840px">
+  <div class="card-body p-4">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="row g-3">
+        {% for champ in form %}
+        <div class="col-md-{% if champ.name == 'observation' %}12{% elif champ.name == 'actif' %}12{% else %}4{% endif %}">
+          {% if champ.name == 'actif' %}
+          <div class="form-check mt-2">{{ champ }}<label class="form-check-label ms-1">{{ champ.label }}</label></div>
+          {% else %}
+          <label class="form-label small fw-semibold">{{ champ.label }}</label>
+          {{ champ }}
+          {% endif %}
+          {% if champ.help_text %}<div class="form-text small">{{ champ.help_text }}</div>{% endif %}
+          {% for e in champ.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <hr class="my-4">
+      <button class="btn btn-primary px-4">Enregistrer</button>
+      <a href="{% url 'agents' %}" class="btn btn-outline-secondary px-4">Annuler</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

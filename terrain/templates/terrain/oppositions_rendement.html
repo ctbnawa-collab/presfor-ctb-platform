@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block title %}Rendement opposition — PRESFOR CTB{% endblock %}
+{% block fil %}Traitement des oppositions et règlement des litiges{% endblock %}
+{% block actions %}<a href="{% url 'oppositions' %}" class="btn btn-sm btn-outline-primary">Voir le registre</a>{% endblock %}
+
+{% block content %}
+{% include "terrain/_periode.html" %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-scale-balanced"></i></div>
+    <div class="val">{{ synthese.total }}</div><div class="lbl">oppositions ouvertes</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric vert">
+    <div class="ico text-success"><i class="fa fa-handshake"></i></div>
+    <div class="val">{{ synthese.nb_reglees }}</div><div class="lbl">réglées à l'amiable</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric bleu2">
+    <div class="ico text-primary"><i class="fa fa-percent"></i></div>
+    <div class="val">{{ synthese.taux_reglement }}%</div><div class="lbl">taux de règlement</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric or">
+    <div class="ico text-warning"><i class="fa fa-hourglass-half"></i></div>
+    <div class="val">{{ synthese.delai_moyen }}</div><div class="lbl">jours pour régler</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-secondary"><i class="fa fa-folder-open"></i></div>
+    <div class="val">{{ synthese.nb_ouvertes }}</div><div class="lbl">dossiers en cours</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric rouge">
+    <div class="ico text-danger"><i class="fa fa-clock"></i></div>
+    <div class="val">{{ synthese.anciennete_moyenne }}</div><div class="lbl">jours d'ancienneté moyenne</div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-7"><div class="card h-100">
+    <div class="card-header">Ouvertures et règlements par mois</div>
+    <div class="card-body"><canvas id="graphMois" height="130"></canvas></div>
+  </div></div>
+  <div class="col-lg-5"><div class="card h-100">
+    <div class="card-header">Répartition par statut</div>
+    <div class="card-body p-0">
+      <table class="table table-sm tbl-sm mb-0">
+        <tbody>{% for s in par_statut %}
+        <tr><td>{{ s.libelle }}</td><td class="text-end fw-semibold">{{ s.nb }}</td></tr>
+        {% empty %}<tr><td class="text-center text-muted py-3">Aucune opposition sur la période</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header">Rendement par agent</div>
+    <div class="card-body p-0">
+      <table class="table table-sm tbl-sm mb-0">
+        <thead><tr><th>Agent</th><th class="text-end">Dossiers</th><th class="text-end">Réglés</th>
+                   <th class="text-end">En cours</th><th class="text-end">Délai moyen</th><th style="width:110px">Taux</th></tr></thead>
+        <tbody>{% for a in par_agent %}
+        <tr><td>{{ a.nom }}</td><td class="text-end fw-semibold">{{ a.total }}</td>
+            <td class="text-end text-success">{{ a.reglees }}</td><td class="text-end">{{ a.ouvertes }}</td>
+            <td class="text-end">{{ a.delai_moyen }} j</td>
+            <td><div class="jauge"><span style="width:{{ a.taux|unlocalize }}%;background:{% if a.taux >= 70 %}var(--vert2){% elif a.taux >= 40 %}var(--or){% else %}var(--rouge){% endif %}"></span></div>
+                <div class="small text-muted mt-1">{{ a.taux }}%</div></td></tr>
+        {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucune donnée</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </div></div>
+  <div class="col-lg-6">
+    <div class="card mb-3">
+      <div class="card-header">Par département</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <thead><tr><th>Département</th><th class="text-end">Total</th><th class="text-end">Réglées</th>
+                     <th class="text-end">En cours</th><th class="text-end">Taux</th></tr></thead>
+          <tbody>{% for d in par_departement %}
+          <tr><td><span class="badge-dept dept-{{ d.departement }}">{{ d.departement }}</span></td>
+              <td class="text-end fw-semibold">{{ d.total }}</td><td class="text-end text-success">{{ d.reglees }}</td>
+              <td class="text-end">{{ d.ouvertes }}</td><td class="text-end">{{ d.taux }}%</td></tr>
+          {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucune donnée</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Nature des litiges</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <tbody>{% for t in par_type %}
+          <tr><td>{{ t.libelle }}</td><td class="text-end fw-semibold">{{ t.nb }}</td></tr>
+          {% empty %}<tr><td class="text-center text-muted py-3">Aucune donnée</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if nb_pg %}
+<div class="card mt-3">
+  <div class="card-header">Lecture directe de la base terrain <span class="text-muted fw-normal">({{ nb_pg }} ligne(s))</span></div>
+  <div class="card-body p-0" style="max-height:320px;overflow:auto">
+    <table class="table table-sm tbl-sm mb-0">
+      <thead><tr><th>Parcelle</th><th>Département</th><th>Village</th><th>Opposant</th>
+                 <th>Ouverture</th><th>Règlement</th><th>Statut</th></tr></thead>
+      <tbody>{% for l in lignes_pg %}
+      <tr><td><code class="small">{{ l.code_parcelle }}</code></td><td class="small">{{ l.departement }}</td>
+          <td class="small">{{ l.village }}</td><td class="small">{{ l.opposant }}</td>
+          <td class="small">{{ l.jour_opposition }}</td><td class="small">{{ l.jour_reglement|default:"—" }}</td>
+          <td class="small">{{ l.statut }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-secondary small mt-3 mb-0">
+  <i class="fa fa-circle-info me-2"></i>{{ message_pg }}
+  Les indicateurs ci-dessus proviennent de la saisie et des imports de la plateforme.
+  Pour lire les oppositions directement dans PostGIS, adaptez <code>terrain/sql/oppositions.sql</code>.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('graphMois'), {
+  type:'bar',
+  data:{labels:{{ graph_mois|safe }}, datasets:[
+    {label:'Oppositions enregistrées', data:{{ graph_ouvertes|safe }}, backgroundColor:'#E0A800', borderRadius:3},
+    {label:'Oppositions réglées', data:{{ graph_reglees|safe }}, backgroundColor:'#70AD47', borderRadius:3}]},
+  options:{responsive:true, plugins:{legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}}},
+    scales:{y:{beginAtZero:true}}}
+});
+</script>
+{% endblock %}

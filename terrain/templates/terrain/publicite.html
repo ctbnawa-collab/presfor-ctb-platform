@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Parcelles en publicité — PRESFOR CTB{% endblock %}
+{% block fil %}Liste de référence des parcelles déjà passées en publicité{% endblock %}
+{% block actions %}
+<a href="{% url 'carte' %}" class="btn btn-sm btn-outline-primary"><i class="fa fa-map-location-dot me-1"></i>Voir la carte</a>
+<a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-secondary"><i class="fa fa-file-csv me-1"></i>Exporter</a>
+<a href="{% url 'importer_couche' %}" class="btn btn-sm btn-primary"><i class="fa fa-layer-group me-1"></i>Importer un shapefile</a>
+{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-warning"><i class="fa fa-bullhorn"></i></div>
+    <div class="val">{{ total }}</div><div class="lbl">parcelles publiées</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric vert">
+    <div class="ico text-success"><i class="fa fa-ruler-combined"></i></div>
+    <div class="val">{{ surface_totale|floatformat:0 }}</div><div class="lbl">hectares publiés</div></div></div>
+  {% for d in par_dept %}
+  <div class="col-4 col-lg-2"><div class="card card-metric">
+    <div class="ico text-secondary"><i class="fa fa-location-dot"></i></div>
+    <div class="val">{{ d.nb }}</div><div class="lbl">{{ d.nom }}</div></div></div>
+  {% endfor %}
+  <div class="col-6 col-lg-2"><div class="card card-metric rouge">
+    <div class="ico text-danger"><i class="fa fa-eye-slash"></i></div>
+    <div class="val">{{ nb_masquees }}</div><div class="lbl">masquées (à supprimer)</div></div></div>
+</div>
+
+<form method="get" class="filtres row g-2 align-items-end">
+  <div class="col-md-4"><label class="form-label mb-1 small text-muted">Recherche</label>
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Code, titulaire, village"></div>
+  <div class="col-md-3"><label class="form-label mb-1 small text-muted">Département</label>
+    <select name="departement" class="form-select"><option value="">Tous</option>
+      {% for d in departements %}<option value="{{ d }}" {% if departement == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><button class="btn btn-primary btn-sm px-3 w-100">Filtrer</button></div>
+</form>
+
+<div class="card"><div class="card-body p-0">
+  <table class="table table-sm tbl-sm table-hover mb-0">
+    <thead><tr><th>Code parcelle</th><th>N° demande</th><th>Département</th><th>Sous-préfecture</th>
+               <th>Village</th><th>Titulaire</th><th class="text-end">Surface (ha)</th>
+               <th>Type</th><th>Commissaire enquêteur</th><th class="text-end">Carte</th></tr></thead>
+    <tbody>
+    {% for p in parcelles %}
+    <tr><td><code class="small">{{ p.code_parcelle }}</code></td><td class="small">{{ p.num_demande|default:"—" }}</td>
+        <td>{% if p.departement %}<span class="badge-dept dept-{{ p.departement }}">{{ p.departement }}</span>{% else %}—{% endif %}</td>
+        <td class="small">{{ p.sous_prefecture|default:"—" }}</td><td class="small">{{ p.village|default:"—" }}</td>
+        <td class="small">{{ p.nom_complet|truncatechars:26|default:"—" }}</td>
+        <td class="text-end">{{ p.surface_ha|floatformat:2|default:"—" }}</td>
+        <td class="small">{{ p.type_certificat|default:"—" }}</td>
+        <td class="small">{{ p.commissaire|truncatechars:24|default:"—" }}</td>
+        <td class="text-end">{% if p.a_geometrie %}<a href="{% url 'carte' %}?q={{ p.code_parcelle }}"
+            class="btn btn-sm btn-outline-primary py-0 px-2"><i class="fa fa-location-crosshairs"></i></a>
+          {% else %}<span class="text-muted small">—</span>{% endif %}</td></tr>
+    {% empty %}
+    <tr><td colspan="10" class="vide"><i class="fa fa-bullhorn"></i>
+      Aucune parcelle en publicité enregistrée.<br>
+      <span class="small">Importez le shapefile des parcelles publiées pour les croiser et les cartographier.</span>
+      <div class="mt-3"><a href="{% url 'importer_couche' %}" class="btn btn-sm btn-primary">Importer un shapefile</a></div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

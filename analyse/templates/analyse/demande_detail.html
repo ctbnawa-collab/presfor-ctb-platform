@@ -1,0 +1,187 @@
+{% extends "analyse/base.html" %}
+{% block title %}Dossier {{ d.num_demande }} — PRESFOR CTB{% endblock %}
+{% block page_title %}<i class="fa fa-folder-open me-2"></i>Dossier {{ d.num_demande }}{% endblock %}
+{% block fil %}{{ d.nom }} {{ d.prenom }} — {{ d.village }}, {{ d.sous_prefecture }}{% endblock %}
+{% block actions %}
+{% if d.departement %}
+<a href="{% url 'departement' session.pk d.departement %}" class="btn btn-sm btn-outline-primary">
+  <i class="fa fa-arrow-left me-1"></i>Retour au département</a>
+{% endif %}
+{% if d.num_parcelle %}
+<a href="{% url 'carte' %}?q={{ d.num_parcelle|urlencode }}&village={{ d.village|urlencode }}"
+   class="btn btn-sm btn-primary">
+  <i class="fa fa-location-crosshairs me-1"></i>Localiser la parcelle</a>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+.volet-obs{border-left:3px solid var(--bleu3);padding-left:12px;}
+.liste-obs{list-style:none;margin:0;padding:0;}
+.liste-obs > li{position:relative;padding-left:16px;margin-bottom:8px;font-size:.86rem;
+  line-height:1.4;}
+.liste-obs > li::before{content:"▸";position:absolute;left:0;color:var(--or);}
+.liste-details{list-style:none;margin:3px 0 0;padding-left:2px;}
+.liste-details li{position:relative;padding-left:14px;font-size:.8rem;color:#5c6b7a;
+  line-height:1.4;}
+.liste-details li::before{content:"–";position:absolute;left:2px;color:#9aa8b5;}
+{% endblock %}
+
+{% block content %}<p>Agent : <strong>{{ d.nom_agent|default:'Non identifié' }}</strong> · Code {{ d.code_agent|default:'—' }} · Superviseur {{ d.superviseur|default:'—' }} · Contrôleur {{ d.controleur|default:'—' }}</p>
+<div class="row g-3">
+
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header">Identification</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <tr><th>N° de demande</th><td class="font-monospace">{{ d.num_demande }}</td></tr>
+          <tr><th>Demandeur</th><td>{{ d.nom }} {{ d.prenom }}</td></tr>
+          <tr><th>N° de parcelle</th><td class="fw-semibold">{{ d.num_parcelle|default:"—" }}</td></tr>
+          <tr><th>Type de certificat</th><td>{{ d.type_certificat|default:"—" }}</td></tr>
+          <tr><th>Surface</th><td>{% if d.surface %}{{ d.surface|floatformat:2 }} ha{% else %}—{% endif %}</td></tr>
+          <tr><th>Village</th><td>{{ d.village|default:"—" }}</td></tr>
+          <tr><th>Sous-préfecture</th><td>{{ d.sous_prefecture|default:"—" }}</td></tr>
+          <tr><th>Département</th><td>
+            {% if d.departement %}<span class="badge-dept dept-{{ d.departement }}">{{ d.departement }}</span>
+            {% else %}—{% endif %}</td></tr>
+          <tr><th>Fichier source</th><td class="small text-muted">{{ d.fichier_source|default:"—" }}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Chronologie</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <tr><th>Création de la demande</th><td>{{ d.date_creation|default:"—" }}</td></tr>
+          <tr><th>Création du PVCL</th><td>{{ d.date_pvcl|default:"—" }}</td></tr>
+          <tr><th>Fin du PVCL</th><td>{{ d.date_pvcl_fin|default:"—" }}</td></tr>
+          <tr><th>Création du RDC</th><td>{{ d.date_rdc|default:"—" }}</td></tr>
+          <tr><th>Fin du RDC</th><td>{{ d.date_rdc_fin|default:"—" }}</td></tr>
+          <tr><th>Annonce de publicité</th><td>{{ d.date_annonce|default:"—" }}</td></tr>
+          <tr><th>Ouverture de publicité</th><td>{{ d.date_ouverture|default:"—" }}</td></tr>
+          <tr><th>Clôture de publicité</th><td>{{ d.date_cloture|default:"—" }}</td></tr>
+          <tr><th>Constat d'existence</th><td>{{ d.date_epc|default:"—" }}</td></tr>
+          <tr><th>Validation</th><td>{{ d.date_validation|default:"—" }}</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-2 text-center">
+          <div class="col-4">
+            <div class="small text-muted mb-1">Statut PVCL</div>
+            {% if d.statut_pvcl == "Pvcl terminé" %}<span class="badge bg-success">{{ d.statut_pvcl }}</span>
+            {% elif d.statut_pvcl == "Pvcl en cours" %}<span class="badge bg-warning text-dark">{{ d.statut_pvcl }}</span>
+            {% else %}<span class="badge bg-light text-muted">{{ d.statut_pvcl }}</span>{% endif %}
+          </div>
+          <div class="col-4">
+            <div class="small text-muted mb-1">Statut RDC</div>
+            {% if d.statut_rdc == "RDC terminé" %}<span class="badge bg-success">{{ d.statut_rdc }}</span>
+            {% elif d.statut_rdc == "RDC encours" %}<span class="badge bg-warning text-dark">{{ d.statut_rdc }}</span>
+            {% else %}<span class="badge bg-light text-muted">{{ d.statut_rdc }}</span>{% endif %}
+          </div>
+          <div class="col-4">
+            <div class="small text-muted mb-1">Étape</div>
+            <span class="badge" style="background:{{ d.couleur_etape }};color:#243746">{{ d.etape }}</span>
+          </div>
+        </div>
+        {% if d.mode_acquisition or d.photo_id %}
+        <hr class="my-3">
+        <div class="row g-2 text-center small">
+          {% if d.mode_acquisition %}
+          <div class="col-6"><div class="text-muted mb-1">Mode d'acquisition</div>
+            <span class="fw-semibold">{{ d.mode_acquisition }}</span></div>
+          {% endif %}
+          {% if d.photo_id %}
+          <div class="col-6"><div class="text-muted mb-1">Photo pièce d'identité</div>
+            {% if d.photo_id == 'RAS' %}<span class="text-success">présente</span>
+            {% else %}<span class="text-warning fw-semibold">{{ d.photo_id }}</span>{% endif %}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fa fa-clipboard-list me-2"></i>Observations du contrôle qualité
+          {% if d.source_qualite == 'v8' %}
+          <span class="badge bg-primary-subtle text-primary-emphasis fw-normal ms-1"
+                title="Observations produites par le moteur Controle_qualite_v8">v8</span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal ms-1"
+                title="Export incomplet : calcul simplifié de la plateforme">calcul plateforme</span>
+          {% endif %}
+        </span>
+        {% if d.terminee %}<span class="badge bg-success">Dossier complet</span>
+        {% else %}<span class="badge bg-warning text-dark">À compléter</span>{% endif %}
+      </div>
+      <div class="card-body">
+        {% if d.remarques_detaillees %}
+          {% for bloc in d.remarques_detaillees %}
+          <div class="volet-obs mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <h6 class="fw-semibold mb-0" style="color:var(--bleu)">{{ bloc.volet }}</h6>
+              {% if bloc.statut %}
+              <span class="badge bg-light text-muted fw-normal">{{ bloc.statut }}</span>
+              {% endif %}
+              <span class="badge bg-warning-subtle text-warning-emphasis fw-normal ms-auto">
+                {{ bloc.motifs|length }} observation(s)</span>
+            </div>
+            <ul class="liste-obs">
+              {% for motif in bloc.motifs %}
+              <li>
+                <span class="fw-semibold">{{ motif.intitule }}</span>
+                {% if motif.details %}
+                <ul class="liste-details">
+                  {% for detail in motif.details %}<li>{{ detail }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+          <p class="small text-muted mb-0 mt-3">
+            Ces observations expliquent pourquoi le dossier n'est pas encore terminé.
+            Corrigez-les dans Digifor, puis relancez l'analyse.
+          </p>
+        {% else %}
+          <div class="vide py-4">
+            <i class="fa fa-circle-check text-success"></i>
+            Aucune observation : le dossier est complet.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if voisines %}
+    <div class="card mt-3">
+      <div class="card-header">Autres dossiers sur la parcelle {{ d.num_parcelle }}</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <tbody>
+          {% for v in voisines %}
+          <tr>
+            <td><a href="{% url 'demande_detail' v.pk %}" class="font-monospace small">{{ v.num_demande }}</a></td>
+            <td class="small">{{ v.nom }} {{ v.prenom }}</td>
+            <td class="small">{{ v.village }}</td>
+            <td class="small">{{ v.etape }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer small text-muted">
+        Un même numéro de parcelle peut désigner des parcelles distinctes dans des
+        villages différents — vérifiez le village avant de conclure à un doublon.
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

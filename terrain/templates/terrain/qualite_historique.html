@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block title %}Historique qualité — PRESFOR CTB{% endblock %}
+{% block fil %}Contrôles enregistrés, pour suivre l'évolution du score dans le temps{% endblock %}
+{% block actions %}<a href="{% url 'controle_qualite' %}" class="btn btn-sm btn-primary">Nouveau contrôle</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm table-hover mb-0">
+      <thead><tr><th>Contrôle</th><th>Période</th><th class="text-end">Parcelles</th><th class="text-end">Bornes</th>
+                 <th class="text-end">Erreurs</th><th class="text-end">Alertes</th><th style="width:150px">Score</th><th>Exécuté le</th></tr></thead>
+      <tbody>
+      {% for c in controles %}
+      <tr>
+        <td>{{ c.libelle }}</td>
+        <td class="small text-muted">{{ c.date_debut|date:"d/m/Y" }} → {{ c.date_fin|date:"d/m/Y" }}</td>
+        <td class="text-end">{{ c.nb_parcelles }}</td><td class="text-end">{{ c.nb_bornes }}</td>
+        <td class="text-end gravite-erreur">{{ c.nb_erreurs }}</td>
+        <td class="text-end gravite-alerte">{{ c.nb_alertes }}</td>
+        <td><div class="jauge"><span style="width:{{ c.score|unlocalize }}%;background:{% if c.score >= 85 %}var(--vert2){% elif c.score >= 60 %}var(--or){% else %}var(--rouge){% endif %}"></span></div>
+            <div class="small text-muted mt-1">{{ c.score }}/100</div></td>
+        <td class="small text-muted">{{ c.lance_le|date:"d/m/Y H:i" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="vide"><i class="fa fa-clock-rotate-left"></i>
+        Aucun contrôle enregistré.<br><span class="small">Lancez un contrôle qualité puis cliquez sur « Enregistrer ce contrôle ».</span></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

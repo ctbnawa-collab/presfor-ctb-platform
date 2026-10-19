@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block title %}Contrôle qualité — PRESFOR CTB{% endblock %}
+{% block fil %}Parcelles et bornes lues directement dans la base terrain{% endblock %}
+{% block actions %}
+<a href="{% url 'qualite_historique' %}" class="btn btn-sm btn-outline-secondary"><i class="fa fa-clock-rotate-left me-1"></i>Historique</a>
+{% if not erreur %}
+<a href="?{{ request.GET.urlencode }}&enregistrer=1" class="btn btn-sm btn-outline-primary"><i class="fa fa-floppy-disk me-1"></i>Enregistrer ce contrôle</a>
+<a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-primary"><i class="fa fa-file-csv me-1"></i>Exporter les constats</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% include "terrain/_periode.html" %}
+
+{% if erreur %}
+<div class="alert alert-danger">
+  <strong><i class="fa fa-database me-2"></i>Base terrain injoignable</strong>
+  <div class="small mt-1">{{ erreur }}</div>
+  <a href="{% url 'terrain_connexion' %}" class="btn btn-sm btn-outline-danger mt-2">Vérifier la connexion</a>
+</div>
+{% else %}
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-vector-square"></i></div>
+    <div class="val">{{ nb_parcelles }}</div><div class="lbl">parcelles contrôlées</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="ico text-info"><i class="fa fa-map-pin"></i></div>
+    <div class="val">{{ nb_bornes }}</div><div class="lbl">bornes contrôlées</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric vert">
+    <div class="ico text-success"><i class="fa fa-circle-check"></i></div>
+    <div class="val">{{ taux_conformite }}%</div><div class="lbl">parcelles conformes</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric rouge">
+    <div class="ico text-danger"><i class="fa fa-circle-exclamation"></i></div>
+    <div class="val">{{ nb_constats_erreur }}</div><div class="lbl">erreurs bloquantes</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric or">
+    <div class="ico text-warning"><i class="fa fa-triangle-exclamation"></i></div>
+    <div class="val">{{ nb_constats_alerte }}</div><div class="lbl">points à vérifier</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric bleu2">
+    <div class="ico text-primary"><i class="fa fa-star-half-stroke"></i></div>
+    <div class="val">{{ score_global }}</div><div class="lbl">score qualité / 100</div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Constats par règle</span>
+        <span class="small text-muted fw-normal">{{ regles|length }} règle(s) en défaut</span>
+      </div>
+      <div class="card-body p-0" style="max-height:430px;overflow:auto">
+        {% if regles %}
+        <table class="table table-sm tbl-sm table-hover mb-0">
+          <thead><tr><th>Règle</th><th>Objet</th><th class="text-end">Occurrences</th><th>Exemples</th></tr></thead>
+          <tbody>
+          {% for r in regles %}
+          <tr>
+            <td><span class="pastille {% if r.gravite == 'erreur' %}err{% else %}ale{% endif %}"></span>
+                <a href="?{{ request.GET.urlencode }}&regle={{ r.regle|urlencode }}">{{ r.regle }}</a></td>
+            <td class="text-muted small">{{ r.objet }}</td>
+            <td class="text-end fw-semibold">{{ r.nb }}</td>
+            <td class="small text-muted">{{ r.exemples|join:", "|truncatechars:44 }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="vide"><i class="fa fa-circle-check text-success"></i>Aucun défaut détecté sur la période.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header">Qualité par département</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <thead><tr><th>Département</th><th class="text-end">Erreurs</th><th class="text-end">Alertes</th></tr></thead>
+          <tbody>
+          {% for d in par_departement %}
+          <tr><td><span class="badge-dept dept-{{ d.departement }}">{{ d.departement }}</span></td>
+              <td class="text-end gravite-erreur">{{ d.erreurs }}</td>
+              <td class="text-end gravite-alerte">{{ d.alertes }}</td></tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted py-3">Aucun constat</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Détail des scores</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span>Parcelles</span><strong>{{ score_parcelles }}/100</strong></div>
+          <div class="jauge"><span style="width:{{ score_parcelles|unlocalize }}%;background:var(--vert2)"></span></div>
+          <div class="small text-muted mt-1">{{ parcelles_erreur }} en erreur · {{ parcelles_alerte }} en alerte</div>
+        </div>
+        <div>
+          <div class="d-flex justify-content-between small mb-1">
+            <span>Bornes</span><strong>{{ score_bornes }}/100</strong></div>
+          <div class="jauge"><span style="width:{{ score_bornes|unlocalize }}%;background:var(--bleu3)"></span></div>
+          <div class="small text-muted mt-1">{{ bornes_erreur }} en erreur · {{ bornes_alerte }} en alerte</div>
+        </div>
+        <hr>
+        <div class="small text-muted">Contrôle exécuté en {{ duree_ms }} ms.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Constats détaillés <span class="text-muted fw-normal">({{ nb_detail }})</span></span>
+    <div class="btn-group btn-group-sm">
+      <a href="?{{ request.GET.urlencode }}&gravite=" class="btn btn-outline-secondary {% if not gravite_filtre %}active{% endif %}">Tous</a>
+      <a href="?{{ request.GET.urlencode }}&gravite=erreur" class="btn btn-outline-danger {% if gravite_filtre == 'erreur' %}active{% endif %}">Erreurs</a>
+      <a href="?{{ request.GET.urlencode }}&gravite=alerte" class="btn btn-outline-warning {% if gravite_filtre == 'alerte' %}active{% endif %}">Alertes</a>
+    </div>
+  </div>
+  <div class="card-body p-0" style="max-height:520px;overflow:auto">
+    <table class="table table-sm tbl-sm table-hover mb-0">
+      <thead><tr><th>Gravité</th><th>Objet</th><th>Référence</th><th>Règle</th><th>Détail</th>
+                 <th>Agent</th><th>Département</th><th>Village</th><th>Jour</th></tr></thead>
+      <tbody>
+      {% for c in detail %}
+      <tr>
+        <td class="{% if c.gravite == 'erreur' %}gravite-erreur{% else %}gravite-alerte{% endif %}">
+          <span class="pastille {% if c.gravite == 'erreur' %}err{% else %}ale{% endif %}"></span>{{ c.gravite }}</td>
+        <td class="small text-muted">{{ c.objet }}</td>
+        <td><code class="small">{{ c.reference }}</code></td>
+        <td class="small">{{ c.regle }}</td>
+        <td class="small text-muted">{{ c.detail|truncatechars:56 }}</td>
+        <td class="small">{{ c.agent }}</td>
+        <td class="small">{{ c.departement }}</td>
+        <td class="small">{{ c.village }}</td>
+        <td class="small">{{ c.jour|date:"d/m/Y" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" class="vide">Aucun constat pour ce filtre.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if nb_detail > 400 %}
+  <div class="card-footer small text-muted">Affichage limité aux 400 premiers constats — utilisez l'export CSV pour la liste complète.</div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

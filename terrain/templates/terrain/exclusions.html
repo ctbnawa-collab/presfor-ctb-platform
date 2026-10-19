@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Parcelles à supprimer — PRESFOR CTB{% endblock %}
+{% block fil %}Ces parcelles sont masquées partout dans la plateforme — rien n'est effacé de la base terrain{% endblock %}
+{% block actions %}
+<a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-secondary"><i class="fa fa-file-csv me-1"></i>Exporter</a>
+<a href="{% url 'importer_couche' %}" class="btn btn-sm btn-outline-primary"><i class="fa fa-layer-group me-1"></i>Importer une couche</a>
+<a href="{% url 'exclusion_creer' %}" class="btn btn-sm btn-primary"><i class="fa fa-plus me-1"></i>Exclure une parcelle</a>
+{% endblock %}
+
+{% block content %}
+<div class="alert alert-secondary py-2 small mb-3">
+  <i class="fa fa-circle-info me-2"></i>
+  Une exclusion est un <strong>filtre d'affichage</strong>, pas une suppression. Les parcelles listées
+  disparaissent de la carte, du contrôle qualité, des rendements et des statistiques ; elles restent
+  intactes dans la base PostGIS. Levez l'exclusion pour les faire réapparaître.
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-metric">
+    <div class="ico text-secondary"><i class="fa fa-list"></i></div>
+    <div class="val">{{ total }}</div><div class="lbl">codes dans la liste</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric rouge">
+    <div class="ico text-danger"><i class="fa fa-eye-slash"></i></div>
+    <div class="val">{{ nb_actives }}</div><div class="lbl">exclusions actives</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric or">
+    <div class="ico text-warning"><i class="fa fa-filter-circle-xmark"></i></div>
+    <div class="val">{{ nb_masquees }}</div><div class="lbl">parcelles publiées masquées</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-map-location-dot"></i></div>
+    <div class="val"><a href="{% url 'carte' %}" class="text-decoration-none">Carte</a></div>
+    <div class="lbl">les visualiser en rouge</div></div></div>
+</div>
+
+<form method="get" class="filtres row g-2 align-items-end">
+  <div class="col-md-4"><label class="form-label mb-1 small text-muted">Code parcelle</label>
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Rechercher"></div>
+  <div class="col-md-3"><label class="form-label mb-1 small text-muted">Motif</label>
+    <select name="motif" class="form-select"><option value="">Tous</option>
+      {% for code, lib in motifs %}<option value="{{ code }}" {% if motif == code %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><button class="btn btn-primary btn-sm px-3 w-100">Filtrer</button></div>
+</form>
+
+<div class="card"><div class="card-body p-0">
+  <table class="table table-sm tbl-sm table-hover mb-0">
+    <thead><tr><th>Code parcelle</th><th>Motif</th><th>Département</th><th>Village</th>
+               <th>Machine</th><th>Date du levé</th><th>Commentaire</th><th>État</th>
+               <th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    {% for e in exclusions %}
+    <tr class="{% if not e.active %}text-muted{% endif %}">
+      <td><code class="small">{{ e.code_parcelle }}</code></td>
+      <td class="small">{{ e.get_motif_display }}</td>
+      <td>{% if e.departement %}<span class="badge-dept dept-{{ e.departement }}">{{ e.departement }}</span>{% else %}—{% endif %}</td>
+      <td class="small">{{ e.village|default:"—" }}</td>
+      <td class="small"><code>{{ e.id_machine|default:"—" }}</code></td>
+      <td class="small">{{ e.date_creation_levee|default:"—" }}</td>
+      <td class="small text-muted">{{ e.commentaire|truncatechars:38|default:"—" }}</td>
+      <td>{% if e.active %}<span class="badge bg-danger-subtle text-danger-emphasis">masquée</span>
+          {% else %}<span class="badge bg-secondary-subtle text-secondary-emphasis">visible</span>{% endif %}</td>
+      <td class="text-end">
+        <a href="{% url 'exclusion_basculer' e.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2"
+           title="{% if e.active %}Rendre visible{% else %}Masquer de nouveau{% endif %}">
+          <i class="fa fa-{% if e.active %}eye{% else %}eye-slash{% endif %}"></i></a>
+        <a href="{% url 'exclusion_modifier' e.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2"><i class="fa fa-pen"></i></a>
+        <a href="{% url 'exclusion_supprimer' e.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2"><i class="fa fa-trash"></i></a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" class="vide"><i class="fa fa-eye-slash"></i>
+      Aucune parcelle exclue.<br>
+      <span class="small">Importez la couche « Plle à supprimer », ou masquez une parcelle depuis la carte.</span>
+      <div class="mt-3"><a href="{% url 'importer_couche' %}" class="btn btn-sm btn-primary">Importer une couche</a></div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

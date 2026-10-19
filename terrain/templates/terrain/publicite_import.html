@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Importer les parcelles en publicité — PRESFOR CTB{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card">
+    <div class="card-header">Import du fichier</div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for champ in form %}
+        <div class="mb-3">
+          {% if champ.name == 'remplacer' %}
+          <div class="form-check">{{ champ }}<label class="form-check-label ms-1">{{ champ.label }}</label></div>
+          {% else %}<label class="form-label small fw-semibold">{{ champ.label }}</label>{{ champ }}{% endif %}
+        </div>
+        {% endfor %}
+        <button class="btn btn-primary px-4">Importer</button>
+      </form>
+      <hr>
+      <p class="small text-muted mb-1"><strong>Colonnes reconnues :</strong></p>
+      <p class="small text-muted mb-0">
+        <code>code_parcelle</code> (obligatoire), <code>num_demande</code>, <code>departement</code>,
+        <code>sous_prefecture</code>, <code>village</code>, <code>titulaire</code>,
+        <code>surface_ha</code>, <code>date_ouverture</code>, <code>date_cloture</code>, <code>statut</code>.
+      </p>
+    </div>
+  </div></div>
+  <div class="col-lg-5">
+    {% if resume %}
+    <div class="card"><div class="card-header">Résultat</div><div class="card-body">
+      <table class="table table-sm tbl-sm mb-0">
+        <tr><th>Lignes lues</th><td>{{ resume.lignes }}</td></tr>
+        <tr><th>Parcelles importées</th><td class="text-success fw-semibold">{{ resume.cree }}</td></tr>
+        <tr><th>Lignes ignorées</th><td class="text-warning">{{ resume.ignore }}</td></tr>
+      </table>
+    </div></div>
+    {% else %}
+    <div class="card"><div class="card-body">
+      <h6 class="mb-2">À quoi sert cette liste</h6>
+      <p class="small text-muted mb-0">
+        Elle alimente l'entonnoir de l'activité globale et permet de repérer les parcelles
+        déjà publiées mais dont le PVCL ou le RDC n'est pas terminé dans les exports Digifor.
+      </p>
+    </div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

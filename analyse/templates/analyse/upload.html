@@ -1,0 +1,98 @@
+{% extends "analyse/base.html" %}
+{% block title %}Nouvelle analyse — PRESFOR CTB{% endblock %}
+{% block page_title %}Nouvelle analyse{% endblock %}
+{% block content %}<p class="alert alert-info">Contrôle qualité des déclarations version 8.3 · Agent identifié par nom_agent ou code machine dans les parcelles, sinon par un code AGENT explicite dans le nom du CSV. Les correspondances proviennent des référentiels fournis.</p>
+<div class="row justify-content-center">
+<div class="col-12 col-lg-8">
+<div class="card p-4">
+  <h5 class="fw-bold mb-4" style="color:var(--bleu)"><i class="fa fa-upload me-2"></i>Importer les données</h5>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label fw-semibold">{{ form.nom.label }}</label>
+      {{ form.nom }}
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">{{ form.csv_files.label }}</label>
+      <div class="border rounded-3 p-3 bg-light text-center" id="dropzone">
+        <i class="fa fa-file-csv fa-2x text-primary mb-2"></i>
+        <div>Glissez vos fichiers CSV ici ou</div>
+        {{ form.csv_files }}
+        <div id="file-list" class="mt-2 text-start"></div>
+      </div>
+      <small class="text-muted">Sélectionnez plusieurs fichiers CSV Digifor (un par agent)</small>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">{{ form.rattachement.label }}</label>
+      <div class="border rounded-3 p-3">
+        {% for choix in form.rattachement %}
+        <div class="form-check">{{ choix.tag }}
+          <label class="form-check-label ms-1" for="{{ choix.id_for_label }}">{{ choix.choice_label }}</label></div>
+        {% endfor %}
+        <small class="text-muted d-block mt-2">
+          Une demande n'existe que pour une parcelle levée. Le premier mode répond à
+          « pour les parcelles levées sur cette période, combien de demandes ont été
+          créées ? » — c'est celui qui rend les deux chiffres comparables.
+          Le second compte les demandes sur leurs propres dates, sans lien avec les levés.
+        </small>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">{{ form.source_parcelles.label }}</label>
+      <div class="border rounded-3 p-3">
+        {% for choix in form.source_parcelles %}
+        <div class="form-check">{{ choix.tag }}
+          <label class="form-check-label ms-1" for="{{ choix.id_for_label }}">{{ choix.choice_label }}</label></div>
+        {% endfor %}
+        <small class="text-muted d-block mt-2">
+          Avec PostGIS, les surfaces, villages, sous-préfectures et départements sont lus
+          directement dans la base terrain sur la période choisie : le fichier Excel devient inutile.
+        </small>
+      </div>
+    </div>
+    <div class="mb-3" id="bloc-parcelle">
+      <label class="form-label fw-semibold">{{ form.parcelle_file.label }}</label>
+      {{ form.parcelle_file }}
+      {% for e in form.parcelle_file.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      <small class="text-muted">Colonnes attendues : code_parcelle, depart, sous_pref, name_villa, surface_ha…</small>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-6">
+        <label class="form-label fw-semibold">{{ form.date_debut.label }}</label>
+        {{ form.date_debut }}
+      </div>
+      <div class="col-6">
+        <label class="form-label fw-semibold">{{ form.date_fin.label }}</label>
+        {{ form.date_fin }}
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="fa fa-play me-2"></i> Lancer l'analyse
+      </button>
+      <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function majSourceParcelles(){
+  const choisi = document.querySelector('input[name="source_parcelles"]:checked');
+  const bloc = document.getElementById('bloc-parcelle');
+  if (bloc && choisi) bloc.style.display = (choisi.value === 'fichier') ? '' : 'none';
+}
+document.querySelectorAll('input[name="source_parcelles"]').forEach(
+  r => r.addEventListener('change', majSourceParcelles));
+majSourceParcelles();
+
+document.getElementById('csv_files').addEventListener('change', function(){
+  const fl = document.getElementById('file-list');
+  fl.innerHTML = [...this.files].map(f=>
+    `<span class="badge bg-light text-dark border me-1 mb-1"><i class="fa fa-file me-1"></i>${f.name}</span>`
+  ).join('');
+});
+</script>
+{% endblock %}

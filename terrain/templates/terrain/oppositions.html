@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Oppositions — PRESFOR CTB{% endblock %}
+{% block fil %}Registre des oppositions et litiges fonciers{% endblock %}
+{% block actions %}
+<a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-secondary"><i class="fa fa-file-csv me-1"></i>Exporter</a>
+<a href="{% url 'oppositions_importer' %}" class="btn btn-sm btn-outline-primary"><i class="fa fa-file-import me-1"></i>Importer</a>
+<a href="{% url 'opposition_creer' %}" class="btn btn-sm btn-primary"><i class="fa fa-plus me-1"></i>Nouvelle opposition</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="val">{{ synthese.total }}</div><div class="lbl">oppositions</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric or">
+    <div class="val">{{ synthese.nb_ouvertes }}</div><div class="lbl">encore ouvertes</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric vert">
+    <div class="val">{{ synthese.nb_reglees }}</div><div class="lbl">réglées à l'amiable</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric bleu2">
+    <div class="val">{{ synthese.taux_traitement }}%</div><div class="lbl">taux de traitement</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="val">{{ synthese.delai_moyen }}</div><div class="lbl">jours de délai moyen</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric rouge">
+    <div class="val">{{ synthese.nb_plus_30j }}</div><div class="lbl">ouvertes depuis +30 j</div></div></div>
+</div>
+
+<form method="get" class="filtres row g-2 align-items-end">
+  <div class="col-md-4">
+    <label class="form-label mb-1 small text-muted">Recherche</label>
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Parcelle, opposant, village">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label mb-1 small text-muted">Département</label>
+    <select name="departement" class="form-select"><option value="">Tous</option>
+      {% for d in departements %}<option value="{{ d }}" {% if departement == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label mb-1 small text-muted">Statut</label>
+    <select name="statut" class="form-select"><option value="">Tous</option>
+      {% for code, lib in statuts %}<option value="{{ code }}" {% if statut == code %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select>
+  </div>
+  <div class="col-md-2"><button class="btn btn-primary btn-sm px-3 w-100">Filtrer</button></div>
+</form>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm table-hover mb-0">
+      <thead><tr><th>Parcelle</th><th>Département</th><th>Village</th><th>Demandeur</th><th>Opposant</th>
+                 <th>Type</th><th>Ouverture</th><th>Règlement</th><th class="text-end">Délai</th>
+                 <th>Statut</th><th>Agent</th><th class="text-end"></th></tr></thead>
+      <tbody>
+      {% for o in oppositions %}
+      <tr>
+        <td><code class="small">{{ o.code_parcelle|default:"—" }}</code></td>
+        <td><span class="badge-dept dept-{{ o.departement }}">{{ o.departement }}</span></td>
+        <td class="small">{{ o.village|default:"—" }}</td>
+        <td class="small">{{ o.demandeur|truncatechars:22 }}</td>
+        <td class="small">{{ o.opposant|truncatechars:22 }}</td>
+        <td class="small text-muted">{{ o.get_type_litige_display }}</td>
+        <td class="small">{{ o.date_opposition|date:"d/m/Y" }}</td>
+        <td class="small">{{ o.date_reglement|date:"d/m/Y"|default:"—" }}</td>
+        <td class="text-end small {% if not o.est_close and o.delai_jours > 30 %}gravite-erreur{% endif %}">{{ o.delai_jours }} j</td>
+        <td>{% if o.est_close %}<span class="badge bg-success-subtle text-success-emphasis">{{ o.get_statut_display }}</span>
+            {% else %}<span class="badge bg-warning-subtle text-warning-emphasis">{{ o.get_statut_display }}</span>{% endif %}</td>
+        <td class="small">{{ o.agent.nom_complet|default:"—" }}</td>
+        <td class="text-end">
+          <a href="{% url 'opposition_modifier' o.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2"><i class="fa fa-pen"></i></a>
+          <a href="{% url 'opposition_supprimer' o.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2"><i class="fa fa-trash"></i></a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="12" class="vide"><i class="fa fa-scale-balanced"></i>
+        Aucune opposition enregistrée.<br>
+        <span class="small">Saisissez la première, ou importez un fichier de suivi existant.</span>
+        <div class="mt-3"><a href="{% url 'opposition_creer' %}" class="btn btn-sm btn-primary">Nouvelle opposition</a></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

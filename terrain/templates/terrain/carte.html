@@ -1,0 +1,683 @@
+{% extends "base.html" %}
+{% block title %}Carte des parcelles — PRESFOR CTB{% endblock %}
+{% block fil %}Cliquez une parcelle pour la consulter, la corriger ou la masquer{% endblock %}
+{% block actions %}
+<a href="{% url 'importer_couche' %}" class="btn btn-sm btn-outline-primary">
+  <i class="fa fa-layer-group me-1"></i>Importer une couche</a>
+<a href="{% url 'exclusions' %}" class="btn btn-sm btn-outline-secondary">
+  <i class="fa fa-eye-slash me-1"></i>{{ nb_exclues }} à supprimer</a>
+{% endblock %}
+
+{% block extra_css %}
+.carte-zone{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start;}
+#carte{height:calc(100vh - 210px);min-height:460px;border-radius:11px;
+  box-shadow:0 1px 3px rgba(18,58,94,.09);background:#dfe7ef;}
+.panneau{max-height:calc(100vh - 210px);overflow-y:auto;}
+.panneau .card-body{padding:14px;}
+.champ-edit{margin-bottom:9px;}
+.champ-edit label{font-size:.7rem;color:#7d8b99;text-transform:uppercase;
+  letter-spacing:.04em;font-weight:600;margin-bottom:2px;display:block;}
+.champ-edit input,.champ-edit textarea{width:100%;font-size:.83rem;padding:5px 8px;
+  border:1px solid #dde4ec;border-radius:6px;}
+.champ-edit input:focus,.champ-edit textarea:focus{outline:2px solid var(--bleu3);
+  outline-offset:-1px;border-color:transparent;}
+.legende{background:#fff;padding:8px 11px;border-radius:8px;font-size:.76rem;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);line-height:1.7;}
+.legende i{display:inline-block;width:13px;height:13px;border-radius:3px;
+  margin-right:6px;vertical-align:-2px;}
+.compteur-carte{background:#fff;padding:5px 10px;border-radius:8px;font-size:.76rem;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);}
+.barre-outils{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.etat-edition{background:#FFF6E0;border-left:3px solid var(--or);padding:8px 11px;
+  border-radius:0 7px 7px 0;font-size:.79rem;margin-bottom:11px;}
+@media (max-width:1100px){.carte-zone{grid-template-columns:1fr;}
+  #carte{height:56vh;} .panneau{max-height:none;}}
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-metric py-3">
+    <div class="val">{{ nb_visibles }}</div><div class="lbl">parcelles affichées</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric rouge py-3">
+    <div class="val">{{ nb_masquees }}</div><div class="lbl">masquées (à supprimer)</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric or py-3">
+    <div class="val">{{ nb_sans_geometrie }}</div><div class="lbl">sans géométrie</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric bleu2 py-3">
+    <div class="val" id="cpt-vue">—</div><div class="lbl">dans la vue actuelle</div></div></div>
+</div>
+
+<div class="filtres mb-3">
+  <form onsubmit="chargerParcelles(); return false">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label mb-1 small text-muted">
+          <i class="fa fa-magnifying-glass me-1"></i>Recherche</label>
+        <input type="text" id="f-q" class="form-control"
+               placeholder="Code parcelle, code unique, n° demande, nom, prénoms, CNI, téléphone">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small text-muted">Région</label>
+        <select id="f-region" class="form-select" disabled>
+          <option>{{ region }}</option></select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small text-muted">Département</label>
+        <select id="f-dept" class="form-select" onchange="chargerParcelles()">
+          <option value="">Tous</option>
+          {% for d in departements %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small text-muted">Sous-préfecture</label>
+        <select id="f-sp" class="form-select" onchange="chargerParcelles()">
+          <option value="">Toutes</option>
+          {% for s in sous_prefectures %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small text-muted">Village</label>
+        <select id="f-village" class="form-select" onchange="chargerParcelles()">
+          <option value="">Tous</option>
+          {% for v in villages %}<option value="{{ v }}">{{ v }}</option>{% endfor %}</select>
+      </div>
+    </div>
+
+    <div class="row g-2 align-items-end mt-1">
+      <div class="col-auto">
+        <label class="form-label mb-1 small text-muted">
+          <i class="fa fa-calendar-days me-1"></i>Publicité ouverte du</label>
+        <input type="date" id="f-d1" class="form-control" onchange="chargerParcelles()">
+      </div>
+      <div class="col-auto">
+        <label class="form-label mb-1 small text-muted">au</label>
+        <input type="date" id="f-d2" class="form-control" onchange="chargerParcelles()">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary btn-sm px-3"><i class="fa fa-filter me-1"></i>Appliquer</button>
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="reinitialiser()">
+          <i class="fa fa-rotate-left me-1"></i>Réinitialiser</button>
+      </div>
+      <div class="col-auto ms-auto">
+        <div class="form-check small"><input class="form-check-input" type="checkbox" id="f-exclues"
+            onchange="basculerCoucheExclues()">
+          <label class="form-check-label" for="f-exclues">Voir les parcelles à supprimer</label></div>
+        <div class="form-check small"><input class="form-check-input" type="checkbox" id="f-auto" checked>
+          <label class="form-check-label" for="f-auto">Recharger au déplacement</label></div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="filtres mb-3 py-2">
+  <div class="d-flex align-items-center flex-wrap gap-2">
+
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
+              data-bs-toggle="dropdown" data-bs-auto-close="outside">
+        <i class="fa fa-layer-group me-1"></i>Couches
+        <span class="badge bg-primary ms-1" id="cpt-couches">2</span>
+      </button>
+      <div class="dropdown-menu p-0 shadow" style="min-width:340px;max-height:70vh;overflow-y:auto">
+
+        <div class="px-3 pt-3 pb-2">
+          <div class="text-uppercase text-muted fw-semibold" style="font-size:.66rem;letter-spacing:.07em">
+            Fond de carte</div>
+        </div>
+        <div class="px-3 pb-2">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="fond" id="fond-osm" value="osm" checked>
+            <label class="form-check-label small" for="fond-osm">Plan OpenStreetMap</label></div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="fond" id="fond-sat" value="sat">
+            <label class="form-check-label small" for="fond-sat">Imagerie satellite</label></div>
+        </div>
+
+        <div class="dropdown-divider my-1"></div>
+        <div class="px-3 pt-1 pb-2">
+          <div class="text-uppercase text-muted fw-semibold" style="font-size:.66rem;letter-spacing:.07em">
+            Base locale</div>
+        </div>
+        <div class="px-3 pb-2" id="couches-locales"></div>
+
+        {% if couches %}
+        <div class="dropdown-divider my-1"></div>
+        <div class="px-3 pt-1 pb-2 d-flex justify-content-between align-items-center">
+          <span class="text-uppercase text-muted fw-semibold" style="font-size:.66rem;letter-spacing:.07em">
+            Base terrain</span>
+          <input type="search" id="filtre-couches" class="form-control form-control-sm"
+                 style="width:130px;font-size:.75rem" placeholder="Filtrer…">
+        </div>
+        <div class="px-3 pb-3" id="couches-terrain" style="max-height:280px;overflow-y:auto"></div>
+        {% endif %}
+
+        <div class="dropdown-divider my-0"></div>
+        <div class="px-3 py-2 d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="toutDecocher()">
+            Tout décocher</button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="rechargerCouchesTerrain(true)">
+            Recharger</button>
+        </div>
+      </div>
+    </div>
+
+    <span class="small text-muted" id="resume-couches">
+      Parcelles publiées ({{ nb_visibles }}) · {{ nb_exclues }} à supprimer{% if couches %} ·
+      {{ couches|length }} couche(s) terrain disponible(s){% endif %}
+    </span>
+
+    {% if message_couches %}
+    <span class="small text-warning ms-auto">
+      <i class="fa fa-triangle-exclamation me-1"></i>Base terrain injoignable</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="carte-zone">
+  <div id="carte"></div>
+
+  <div class="panneau">
+    <div class="card" id="panneau-vide">
+      <div class="card-body text-center py-5">
+        <i class="fa fa-hand-pointer fa-2x text-muted mb-3 d-block" style="opacity:.35"></i>
+        <p class="small text-muted mb-0">
+          Cliquez une parcelle sur la carte pour afficher sa fiche,
+          corriger ses attributs, redessiner ses limites ou la retirer de l'affichage.
+        </p>
+      </div>
+    </div>
+
+    <div class="card d-none" id="panneau-fiche">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span id="fiche-titre">Parcelle</span>
+        <button class="btn-close btn-sm" onclick="fermerFiche()" aria-label="Fermer"></button>
+      </div>
+      <div class="card-body">
+        <div id="etat-geometrie"></div>
+        <div class="barre-outils">
+          <button class="btn btn-sm btn-outline-primary" id="btn-geom" onclick="basculerEditionGeometrie()">
+            <i class="fa fa-draw-polygon me-1"></i>Modifier les limites</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="zoomerSurParcelle()">
+            <i class="fa fa-magnifying-glass-plus me-1"></i>Zoomer</button>
+        </div>
+
+        <div id="fiche-champs"></div>
+
+        <hr class="my-3">
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-primary btn-sm flex-fill" onclick="enregistrerParcelle()">
+            <i class="fa fa-floppy-disk me-1"></i>Enregistrer</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="rechargerFiche()">Annuler</button>
+        </div>
+
+        <div class="etat-edition">
+          <strong>Retirer de l'affichage</strong>
+          <p class="mb-2 mt-1" style="font-size:.76rem">
+            La parcelle est masquée partout (carte, contrôle qualité, rendements)
+            sans rien effacer de la base terrain. Réversible à tout moment.
+          </p>
+          <select id="motif-exclusion" class="form-select form-select-sm mb-2">
+            {% for code, lib in motifs %}<option value="{{ code }}">{{ lib }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-sm btn-warning w-100" onclick="exclureParcelle()">
+            <i class="fa fa-eye-slash me-1"></i>Masquer cette parcelle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const URL_PARCELLES = "{% url 'api_parcelles' %}";
+const CSRF = "{{ csrf_token }}";
+const ETENDUE = {{ etendue_json|safe }};
+
+const CHAMPS = [
+  ['code_parcelle',  'Code parcelle',   'text'],
+  ['num_demande',    'N° de demande',   'text'],
+  ['titulaire',      'Nom du titulaire', 'text'],
+  ['prenoms',        'Prénoms',         'text'],
+  ['telephone',      'Téléphone',       'text'],
+  ['cni',            'CNI',             'text'],
+  ['type_certificat', 'Type de certificat', 'text'],
+  ['surface_ha',     'Surface (ha)',    'number'],
+  ['departement',    'Département',     'text'],
+  ['sous_prefecture', 'Sous-préfecture', 'text'],
+  ['village',        'Village',         'text'],
+  ['commissaire',    'Commissaire enquêteur', 'text'],
+  ['statut',         'Statut',          'text'],
+  ['observation',    'Observation',     'zone'],
+];
+
+const carte = L.map('carte', {preferCanvas: true});
+carte.fitBounds([[ETENDUE.latMin, ETENDUE.lonMin], [ETENDUE.latMax, ETENDUE.lonMax]]);
+
+const fondOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap'});
+const fondSat = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom: 19, attribution: 'Imagerie Esri'});
+// Étiquettes routes et lieux-dits, superposables à l'imagerie
+const fondSatLabels = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom: 19, opacity: .85});
+const satellite = L.layerGroup([fondSat, fondSatLabels]);
+fondOSM.addTo(carte);
+
+const couchePubliees = L.geoJSON(null, {
+  style: () => ({color: '#1F4E79', weight: 1.2, fillColor: '#2E75B6', fillOpacity: .28}),
+  onEachFeature: (f, l) => {
+    l.on('click', () => ouvrirFiche(f, l));
+    l.bindTooltip(f.properties.code_parcelle || '', {sticky: true, direction: 'top'});
+  }
+}).addTo(carte);
+
+const coucheExclues = L.geoJSON(null, {
+  style: () => ({color: '#C0392B', weight: 1.4, fillColor: '#C0392B',
+                 fillOpacity: .3, dashArray: '4,3'}),
+  onEachFeature: (f, l) => l.bindTooltip(
+    `${f.properties.code_parcelle} — à supprimer (${f.properties.motif})`,
+    {sticky: true, direction: 'top'})
+});
+
+// ── Couches lues dans la base terrain ──────────────────────────────────────
+const COUCHES_TERRAIN = {{ couches_json|safe }};
+const couchesTerrain = {};      // table → L.geoJSON
+const couchesChargees = {};     // table → emprise déjà chargée
+
+COUCHES_TERRAIN.forEach(c => {
+  const groupe = L.geoJSON(null, {
+    style: () => ({color: c.couleur, weight: 1.4, fillColor: c.couleur,
+                   fillOpacity: .12}),
+    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+      radius: 4, color: c.couleur, fillColor: c.couleur, fillOpacity: .85, weight: 1}),
+    onEachFeature: (f, l) => {
+      const p = f.properties || {};
+      const lignes = Object.entries(p)
+        .filter(([, v]) => v !== null && v !== '')
+        .slice(0, 8)
+        .map(([k, v]) => `<strong>${k}</strong> : ${v}`);
+      l.bindPopup(`<div style="font-size:.8rem"><div class="fw-semibold mb-1">${c.libelle}</div>${lignes.join('<br>')}</div>`);
+    }
+  });
+  couchesTerrain[c.table] = groupe;
+  // Chargement à la demande, quand l'utilisateur coche la couche
+  groupe.on('add', () => chargerCoucheTerrain(c.table));
+});
+
+// ── Menu des couches ───────────────────────────────────────────────────────
+const COUCHES_LOCALES = [
+  {cle: 'publiees', libelle: 'Parcelles publiées', couleur: '#2E75B6',
+   groupe: couchePubliees, actif: true},
+  {cle: 'exclues', libelle: 'Parcelles à supprimer', couleur: '#C0392B',
+   groupe: coucheExclues, actif: false},
+];
+
+function ligneCouche(id, libelle, couleur, actif, suffixe) {
+  return `<div class="form-check d-flex align-items-center couche-ligne" data-nom="${libelle.toLowerCase()}">
+      <input class="form-check-input" type="checkbox" id="${id}" ${actif ? 'checked' : ''}>
+      <label class="form-check-label small d-flex align-items-center ms-1 flex-grow-1" for="${id}">
+        <span style="display:inline-block;width:11px;height:11px;border-radius:3px;
+                     background:${couleur};margin-right:7px;flex:none"></span>
+        ${libelle}${suffixe || ''}
+      </label></div>`;
+}
+
+document.getElementById('couches-locales').innerHTML =
+  COUCHES_LOCALES.map(c => ligneCouche('loc-' + c.cle, c.libelle, c.couleur, c.actif)).join('');
+
+const zoneTerrain = document.getElementById('couches-terrain');
+if (zoneTerrain) {
+  zoneTerrain.innerHTML = COUCHES_TERRAIN
+    .map(c => ligneCouche('ter-' + c.table, c.libelle, c.couleur, false,
+                          c.libelle === c.table ? '' : ` <span class="text-muted">(${c.table})</span>`))
+    .join('') || '<div class="small text-muted">Aucune couche détectée.</div>';
+}
+
+function basculer(groupe, actif) {
+  if (actif) { if (!carte.hasLayer(groupe)) groupe.addTo(carte); }
+  else { if (carte.hasLayer(groupe)) carte.removeLayer(groupe); }
+  majCompteurCouches();
+}
+
+function majCompteurCouches() {
+  const n = document.querySelectorAll('#couches-locales input:checked, #couches-terrain input:checked').length;
+  document.getElementById('cpt-couches').textContent = n;
+}
+
+COUCHES_LOCALES.forEach(c => {
+  const el = document.getElementById('loc-' + c.cle);
+  el.addEventListener('change', () => {
+    if (c.cle === 'exclues') { basculerCoucheExclues(el.checked); return; }
+    basculer(c.groupe, el.checked);
+  });
+});
+
+COUCHES_TERRAIN.forEach(c => {
+  const el = document.getElementById('ter-' + c.table);
+  if (el) el.addEventListener('change', () => basculer(couchesTerrain[c.table], el.checked));
+});
+
+document.querySelectorAll('input[name="fond"]').forEach(r => {
+  r.addEventListener('change', () => {
+    carte.removeLayer(fondOSM); carte.removeLayer(satellite);
+    (r.value === 'sat' ? satellite : fondOSM).addTo(carte);
+  });
+});
+
+const filtreCouches = document.getElementById('filtre-couches');
+if (filtreCouches) {
+  filtreCouches.addEventListener('input', () => {
+    const q = filtreCouches.value.trim().toLowerCase();
+    document.querySelectorAll('#couches-terrain .couche-ligne').forEach(l => {
+      l.style.display = !q || l.dataset.nom.includes(q) ? '' : 'none';
+    });
+  });
+}
+
+function toutDecocher() {
+  document.querySelectorAll('#couches-terrain input:checked').forEach(el => {
+    el.checked = false;
+    const t = el.id.replace('ter-', '');
+    if (couchesTerrain[t]) carte.removeLayer(couchesTerrain[t]);
+  });
+  majCompteurCouches();
+}
+
+majCompteurCouches();
+
+async function chargerCoucheTerrain(table) {
+  const groupe = couchesTerrain[table];
+  if (!groupe || !carte.hasLayer(groupe)) return;
+  const b = carte.getBounds();
+  const emprise = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
+    .map(v => v.toFixed(4)).join(',');
+  if (couchesChargees[table] === emprise) return;
+  couchesChargees[table] = emprise;
+  majCompteur('Chargement de la couche…');
+  try {
+    const r = await fetch(`/terrain/api/couche/${table}/?bbox=${emprise}&limite=1500`);
+    const d = await r.json();
+    if (d.erreur) { signaler(d.erreur, 'warning'); return; }
+    groupe.clearLayers();
+    groupe.addData(d);
+    majCompteur(d.tronque
+      ? `${d.couche} : ${d.nb} objets sur ${d.total} — zoomez pour tout voir`
+      : `${d.couche} : ${d.nb} objet(s)`);
+  } catch (e) {
+    signaler('Couche indisponible : ' + table, 'warning');
+  }
+}
+
+function rechargerCouchesTerrain(force) {
+  Object.keys(couchesTerrain).forEach(t => {
+    if (force) couchesChargees[t] = null;
+    if (carte.hasLayer(couchesTerrain[t])) chargerCoucheTerrain(t);
+  });
+}
+
+const legende = L.control({position: 'bottomright'});
+legende.onAdd = function () {
+  const d = L.DomUtil.create('div', 'legende');
+  d.innerHTML = '<i style="background:#2E75B6"></i>Parcelle publiée<br>' +
+                '<i style="background:#C0392B"></i>À supprimer<br>' +
+                '<i style="background:#FFC000"></i>Sélectionnée';
+  return d;
+};
+legende.addTo(carte);
+
+const compteur = L.control({position: 'topleft'});
+compteur.onAdd = function () {
+  this._d = L.DomUtil.create('div', 'compteur-carte');
+  this._d.innerHTML = 'Chargement…';
+  return this._d;
+};
+compteur.addTo(carte);
+
+// ── Chargement ──────────────────────────────────────────────────────────────
+let chargementEnCours = false;
+
+function parametres() {
+  const b = carte.getBounds();
+  const p = new URLSearchParams({
+    bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(','),
+    limite: 2000
+  });
+  const q  = document.getElementById('f-q').value.trim();
+  const d  = document.getElementById('f-dept').value;
+  const sp = document.getElementById('f-sp').value;
+  const v  = document.getElementById('f-village').value;
+  const d1 = document.getElementById('f-d1').value;
+  const d2 = document.getElementById('f-d2').value;
+  if (q)  p.set('q', q);
+  if (d)  p.set('departement', d);
+  if (sp) p.set('sous_prefecture', sp);
+  if (v)  p.set('village', v);
+  if (d1) p.set('d1', d1);
+  if (d2) p.set('d2', d2);
+  // Une recherche explicite doit chercher partout, pas seulement dans la vue.
+  if (q) p.delete('bbox');
+  return p;
+}
+
+function reinitialiser() {
+  ['f-q', 'f-d1', 'f-d2'].forEach(id => document.getElementById(id).value = '');
+  ['f-dept', 'f-sp', 'f-village'].forEach(id => document.getElementById(id).value = '');
+  chargerParcelles();
+}
+
+async function chargerParcelles() {
+  if (chargementEnCours) return;
+  chargementEnCours = true;
+  majCompteur('Chargement…');
+  try {
+    const r = await fetch(`${URL_PARCELLES}?${parametres()}`);
+    const données = await r.json();
+    couchePubliees.clearLayers();
+    couchePubliees.addData(données);
+    document.getElementById('cpt-vue').textContent = données.nb;
+    majCompteur(données.tronque
+      ? `${données.nb} affichées sur ${données.total} — zoomez pour tout voir`
+      : `${données.nb} parcelle(s) affichée(s)`);
+    // Recherche explicite : on cadre la carte sur les résultats trouvés
+    if (document.getElementById('f-q').value.trim() && données.nb) {
+      try {
+        carte.fitBounds(couchePubliees.getBounds(),
+                        {maxZoom: données.nb === 1 ? 18 : 16, padding: [40, 40]});
+      } catch (e) {}
+      // Un seul résultat : on ouvre directement sa fiche
+      if (données.nb === 1) {
+        const couche = couchePubliees.getLayers()[0];
+        if (couche && couche.feature) ouvrirFiche(couche.feature, couche);
+      }
+    }
+  } catch (e) {
+    majCompteur('Chargement impossible');
+  } finally {
+    chargementEnCours = false;
+  }
+}
+
+function majCompteur(texte) {
+  const d = document.querySelector('.compteur-carte');
+  if (d) d.textContent = texte;
+}
+
+async function basculerCoucheExclues(force) {
+  const boite = document.getElementById('f-exclues');
+  const actif = force !== undefined ? force : (boite ? boite.checked : false);
+  const menu = document.getElementById('loc-exclues');
+  if (boite) boite.checked = actif;
+  if (menu) menu.checked = actif;
+  if (!actif) { carte.removeLayer(coucheExclues); majCompteurCouches(); return; }
+  if (!coucheExclues.getLayers().length) {
+    const r = await fetch(`${URL_PARCELLES}?couche=exclue&limite=2000`);
+    coucheExclues.addData(await r.json());
+  }
+  coucheExclues.addTo(carte);
+  majCompteurCouches();
+}
+
+carte.on('moveend', () => {
+  if (document.getElementById('f-auto').checked) {
+    chargerParcelles();
+    rechargerCouchesTerrain();
+  }
+});
+
+// ── Fiche et édition ────────────────────────────────────────────────────────
+let parcelleActive = null, coucheActive = null, editionGeometrie = false;
+
+function ouvrirFiche(feature, couche) {
+  if (editionGeometrie) arreterEditionGeometrie(false);
+  if (coucheActive) couchePubliees.resetStyle(coucheActive);
+  parcelleActive = feature;
+  coucheActive = couche;
+  couche.setStyle({color: '#E0A800', weight: 3, fillColor: '#FFC000', fillOpacity: .4});
+
+  document.getElementById('panneau-vide').classList.add('d-none');
+  document.getElementById('panneau-fiche').classList.remove('d-none');
+  document.getElementById('fiche-titre').textContent =
+    feature.properties.code_parcelle || 'Parcelle';
+
+  const p = feature.properties;
+  document.getElementById('fiche-champs').innerHTML = CHAMPS.map(([cle, lib, type]) => {
+    const val = (p[cle] ?? '').toString().replace(/"/g, '&quot;');
+    const saisie = type === 'zone'
+      ? `<textarea rows="2" data-champ="${cle}">${val}</textarea>`
+      : `<input type="${type}" ${type === 'number' ? 'step="0.0001"' : ''} data-champ="${cle}" value="${val}">`;
+    return `<div class="champ-edit"><label>${lib}</label>${saisie}</div>`;
+  }).join('');
+  document.getElementById('etat-geometrie').innerHTML = '';
+}
+
+function fermerFiche() {
+  if (editionGeometrie) arreterEditionGeometrie(false);
+  if (coucheActive) couchePubliees.resetStyle(coucheActive);
+  parcelleActive = coucheActive = null;
+  document.getElementById('panneau-fiche').classList.add('d-none');
+  document.getElementById('panneau-vide').classList.remove('d-none');
+}
+
+function zoomerSurParcelle() {
+  if (!coucheActive) return;
+  carte.fitBounds(coucheActive.getBounds(), {maxZoom: 19, padding: [30, 30]});
+  document.getElementById('carte').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function basculerEditionGeometrie() {
+  editionGeometrie ? arreterEditionGeometrie(true) : demarrerEditionGeometrie();
+}
+
+function demarrerEditionGeometrie() {
+  if (!coucheActive || !coucheActive.editing) return;
+  coucheActive.editing.enable();
+  editionGeometrie = true;
+  document.getElementById('btn-geom').innerHTML =
+    '<i class="fa fa-check me-1"></i>Terminer le tracé';
+  document.getElementById('btn-geom').className = 'btn btn-sm btn-warning';
+  document.getElementById('etat-geometrie').innerHTML =
+    '<div class="etat-edition mb-2"><strong>Tracé en cours.</strong> ' +
+    'Faites glisser les sommets, ou les losanges pour en ajouter. ' +
+    'Cliquez « Enregistrer » pour sauver la nouvelle géométrie.</div>';
+}
+
+function arreterEditionGeometrie(garder) {
+  if (coucheActive && coucheActive.editing) {
+    coucheActive.editing.disable();
+    if (!garder && coucheActive.feature) {
+      couchePubliees.removeLayer(coucheActive);
+      couchePubliees.addData(coucheActive.feature);
+    }
+  }
+  editionGeometrie = false;
+  const b = document.getElementById('btn-geom');
+  if (b) {
+    b.innerHTML = '<i class="fa fa-draw-polygon me-1"></i>Modifier les limites';
+    b.className = 'btn btn-sm btn-outline-primary';
+  }
+}
+
+function collecterAttributs() {
+  const attributs = {};
+  document.querySelectorAll('#fiche-champs [data-champ]').forEach(
+    e => attributs[e.dataset.champ] = e.value);
+  return attributs;
+}
+
+async function enregistrerParcelle() {
+  if (!parcelleActive) return;
+  const corps = {attributs: collecterAttributs()};
+  if (editionGeometrie && coucheActive) {
+    corps.geometrie = coucheActive.toGeoJSON().geometry;
+  }
+  const r = await fetch(`/terrain/api/parcelle/${parcelleActive.properties.pk}/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+    body: JSON.stringify(corps)
+  });
+  const rep = await r.json();
+  if (rep.ok) {
+    if (editionGeometrie) arreterEditionGeometrie(true);
+    signaler(rep.message, 'success');
+    chargerParcelles();
+    fermerFiche();
+  } else {
+    signaler(rep.erreur || "Enregistrement refusé.", 'danger');
+  }
+}
+
+function rechargerFiche() {
+  if (editionGeometrie) arreterEditionGeometrie(false);
+  if (parcelleActive && coucheActive) ouvrirFiche(parcelleActive, coucheActive);
+}
+
+async function exclureParcelle() {
+  if (!parcelleActive) return;
+  const code = parcelleActive.properties.code_parcelle;
+  if (!confirm(`Masquer la parcelle ${code} de tous les affichages ?`)) return;
+  const r = await fetch(`/terrain/api/parcelle/${parcelleActive.properties.pk}/exclure/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+    body: JSON.stringify({exclure: true,
+                          motif: document.getElementById('motif-exclusion').value})
+  });
+  const rep = await r.json();
+  signaler(rep.message, 'warning');
+  coucheExclues.clearLayers();
+  fermerFiche();
+  chargerParcelles();
+  if (document.getElementById('f-exclues').checked) basculerCoucheExclues();
+}
+
+function signaler(texte, type) {
+  const d = document.createElement('div');
+  d.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+  d.style.cssText = 'top:16px;right:16px;z-index:2000;min-width:300px;box-shadow:0 4px 14px rgba(0,0,0,.18)';
+  d.innerHTML = `${texte}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 4200);
+}
+
+document.getElementById('f-q').addEventListener('keydown',
+  e => { if (e.key === 'Enter') { e.preventDefault(); chargerParcelles(); } });
+
+// Recherche transmise par l'URL (lien « Localiser » depuis les autres écrans)
+const paramsUrl = new URLSearchParams(window.location.search);
+if (paramsUrl.get('q')) document.getElementById('f-q').value = paramsUrl.get('q');
+if (paramsUrl.get('village')) {
+  const sel = document.getElementById('f-village');
+  const cible = paramsUrl.get('village').trim().toLowerCase();
+  const option = [...sel.options].find(o => o.value.trim().toLowerCase() === cible);
+  if (option) sel.value = option.value;
+}
+
+chargerParcelles();
+</script>
+{% endblock %}

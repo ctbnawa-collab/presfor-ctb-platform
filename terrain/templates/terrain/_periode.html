@@ -1,0 +1,17 @@
+<form method="get" class="filtres row g-2 align-items-end">
+  {% for champ in form %}
+  <div class="col-auto">
+    <label class="form-label mb-1 small text-muted">{{ champ.label }}</label>
+    {{ champ }}
+  </div>
+  {% endfor %}
+  <div class="col-auto">
+    <button class="btn btn-primary btn-sm px-3"><i class="fa fa-filter me-1"></i>Appliquer</button>
+  </div>
+  <div class="col-auto ms-auto small text-muted">
+    Période analysée : <strong>{{ date_debut|date:"d/m/Y" }}</strong> → <strong>{{ date_fin|date:"d/m/Y" }}</strong>
+  </div>
+</form>
+{% if form.errors %}
+<div class="alert alert-warning py-2 small">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+{% endif %}

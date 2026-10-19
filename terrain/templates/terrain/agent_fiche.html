@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ agent.nom_complet }} — PRESFOR CTB{% endblock %}
+{% block fil %}{{ agent.get_fonction_display }} — {{ agent.departement }} · machine <code>{{ agent.id_machine }}</code>{% endblock %}
+{% block actions %}
+<a href="{% url 'agent_modifier' agent.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa fa-pen me-1"></i>Modifier</a>
+<a href="{% url 'agents' %}" class="btn btn-sm btn-outline-primary">Retour à la liste</a>
+{% endblock %}
+
+{% block content %}
+{% include "terrain/_periode.html" %}
+
+{% if erreur %}
+<div class="alert alert-danger py-2"><i class="fa fa-database me-2"></i>{{ erreur }}</div>
+{% elif synthese %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="val">{{ synthese.nb_parcelles }}</div><div class="lbl">parcelles levées</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric vert">
+    <div class="val">{{ synthese.surface_ha }}</div><div class="lbl">hectares</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric">
+    <div class="val">{{ synthese.nb_jours }}</div><div class="lbl">jours travaillés</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric or">
+    <div class="val">{{ synthese.moyenne_jour }}</div><div class="lbl">parcelles / jour</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric bleu2">
+    <div class="val">{{ synthese.taux_objectif }}%</div><div class="lbl">de l'objectif ({{ synthese.objectif }}/j)</div></div></div>
+  <div class="col-6 col-lg-2"><div class="card card-metric {% if synthese.taux_conformite < 80 %}rouge{% else %}vert{% endif %}">
+    <div class="val">{{ synthese.taux_conformite }}%</div><div class="lbl">conformité</div></div></div>
+</div>
+{% else %}
+<div class="card mb-3"><div class="vide"><i class="fa fa-inbox"></i>Aucun levé enregistré pour cet agent sur la période.</div></div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header">Identité</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <tr><th>Nom complet</th><td>{{ agent.nom_complet }}</td></tr>
+          <tr><th>Identifiant machine</th><td><code>{{ agent.id_machine }}</code></td></tr>
+          <tr><th>Fonction</th><td>{{ agent.get_fonction_display }}</td></tr>
+          <tr><th>Département</th><td><span class="badge-dept dept-{{ agent.departement }}">{{ agent.departement }}</span></td></tr>
+          <tr><th>Sous-préfecture</th><td>{{ agent.sous_prefecture|default:"—" }}</td></tr>
+          <tr><th>Téléphone</th><td>{{ agent.telephone|default:"—" }}</td></tr>
+          <tr><th>Matricule</th><td>{{ agent.matricule|default:"—" }}</td></tr>
+          <tr><th>Prise de service</th><td>{{ agent.date_prise_service|date:"d/m/Y"|default:"—" }}</td></tr>
+          <tr><th>Statut</th><td>{% if agent.actif %}<span class="text-success">en activité</span>{% else %}<span class="text-muted">inactif</span>{% endif %}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Défauts relevés sur ses levés</div>
+      <div class="card-body p-0" style="max-height:280px;overflow:auto">
+        <table class="table table-sm tbl-sm mb-0">
+          <tbody>
+          {% for r in constats %}
+          <tr><td><span class="pastille {% if r.gravite == 'erreur' %}err{% else %}ale{% endif %}"></span>{{ r.regle }}</td>
+              <td class="text-end fw-semibold">{{ r.nb }}</td></tr>
+          {% empty %}<tr><td class="text-center text-success py-3"><i class="fa fa-circle-check me-2"></i>Aucun défaut</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header">Journal quotidien</div>
+      <div class="card-body p-0" style="max-height:330px;overflow:auto">
+        <table class="table table-sm tbl-sm mb-0">
+          <thead><tr><th>Jour</th><th class="text-end">Parcelles</th><th class="text-end">Surface (ha)</th><th class="text-end">Conformité</th></tr></thead>
+          <tbody>
+          {% for j in jours reversed %}
+          <tr><td>{{ j.jour|date:"D d/m/Y" }}</td><td class="text-end fw-semibold">{{ j.nb_parcelles }}</td>
+              <td class="text-end">{{ j.surface_ha }}</td><td class="text-end">{{ j.taux_conformite }}%</td></tr>
+          {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune donnée</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Oppositions suivies par cet agent</div>
+      <div class="card-body p-0">
+        <table class="table table-sm tbl-sm mb-0">
+          <tbody>
+          {% for o in oppositions %}
+          <tr><td><code class="small">{{ o.code_parcelle }}</code></td><td class="small">{{ o.get_type_litige_display }}</td>
+              <td class="small">{{ o.date_opposition|date:"d/m/Y" }}</td>
+              <td class="small">{{ o.get_statut_display }}</td></tr>
+          {% empty %}<tr><td class="text-center text-muted py-3">Aucune opposition affectée</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

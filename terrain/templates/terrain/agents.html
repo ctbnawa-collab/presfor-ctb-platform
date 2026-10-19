@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Agents — PRESFOR CTB{% endblock %}
+{% block fil %}Fiche des agents de terrain — sert de référence à tous les calculs de rendement{% endblock %}
+{% block actions %}
+<a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-secondary"><i class="fa fa-file-csv me-1"></i>Exporter</a>
+<a href="{% url 'agents_importer' %}" class="btn btn-sm btn-outline-primary"><i class="fa fa-file-import me-1"></i>Importer</a>
+<a href="{% url 'agent_creer' %}" class="btn btn-sm btn-primary"><i class="fa fa-user-plus me-1"></i>Nouvel agent</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-users"></i></div>
+    <div class="val">{{ total }}</div><div class="lbl">agents enregistrés</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric vert">
+    <div class="ico text-success"><i class="fa fa-user-check"></i></div>
+    <div class="val">{{ nb_actifs }}</div><div class="lbl">en activité</div></div></div>
+  {% for d in par_dept %}
+  <div class="col-4 col-lg-2"><div class="card card-metric">
+    <div class="ico text-secondary"><i class="fa fa-location-dot"></i></div>
+    <div class="val">{{ d.nb }}</div><div class="lbl">{{ d.nom }}</div></div></div>
+  {% endfor %}
+</div>
+
+<form method="get" class="filtres row g-2 align-items-end">
+  <div class="col-md-3">
+    <label class="form-label mb-1 small text-muted">Recherche</label>
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Nom, machine, matricule">
+  </div>
+  <div class="col-md-2">
+    <label class="form-label mb-1 small text-muted">Département</label>
+    <select name="departement" class="form-select">
+      <option value="">Tous</option>
+      {% for d in departements %}<option value="{{ d }}" {% if departement == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label mb-1 small text-muted">Fonction</label>
+    <select name="fonction" class="form-select">
+      <option value="">Toutes</option>
+      {% for code, lib in fonctions %}<option value="{{ code }}" {% if fonction == code %}selected{% endif %}>{{ lib }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label class="form-label mb-1 small text-muted">Statut</label>
+    <select name="statut" class="form-select">
+      <option value="">Tous</option>
+      <option value="actif" {% if statut == 'actif' %}selected{% endif %}>En activité</option>
+      <option value="inactif" {% if statut == 'inactif' %}selected{% endif %}>Inactif</option>
+    </select>
+  </div>
+  <div class="col-md-2"><button class="btn btn-primary btn-sm px-3 w-100">Filtrer</button></div>
+</form>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm table-hover mb-0">
+      <thead><tr><th>Agent</th><th>Machine</th><th>Fonction</th><th>Département</th>
+                 <th>Sous-préfecture</th><th>Téléphone</th><th class="text-end">Objectif/j</th>
+                 <th>Statut</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+      {% for a in agents %}
+      <tr>
+        <td><a href="{% url 'rendement_agent' a.pk %}"><strong>{{ a.nom }}</strong> {{ a.prenoms }}</a>
+            {% if a.matricule %}<span class="text-muted small d-block">mat. {{ a.matricule }}</span>{% endif %}</td>
+        <td><code class="small">{{ a.id_machine }}</code></td>
+        <td class="small">{{ a.get_fonction_display }}</td>
+        <td><span class="badge-dept dept-{{ a.departement }}">{{ a.departement }}</span></td>
+        <td class="small">{{ a.sous_prefecture|default:"—" }}</td>
+        <td class="small">{{ a.telephone|default:"—" }}</td>
+        <td class="text-end">{{ a.objectif_journalier }}</td>
+        <td>{% if a.actif %}<span class="badge bg-success-subtle text-success-emphasis">actif</span>
+            {% else %}<span class="badge bg-secondary-subtle text-secondary-emphasis">inactif</span>{% endif %}</td>
+        <td class="text-end">
+          <a href="{% url 'agent_modifier' a.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2"><i class="fa fa-pen"></i></a>
+          <a href="{% url 'agent_supprimer' a.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2"><i class="fa fa-trash"></i></a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" class="vide"><i class="fa fa-user-slash"></i>
+        Aucun agent enregistré.<br><span class="small">Commencez par un import, ou reprenez la liste historique.</span>
+        <div class="mt-3"><a href="{% url 'agents_importer' %}" class="btn btn-sm btn-primary">Enregistrer les agents</a></div>
+      </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

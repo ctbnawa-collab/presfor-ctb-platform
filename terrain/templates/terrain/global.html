@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block title %}Activité globale — PRESFOR CTB{% endblock %}
+{% block fil %}Terrain, instruction des demandes, oppositions et publicité réunis sur une seule page{% endblock %}
+{% block actions %}
+<a href="{% url 'controle_qualite' %}" class="btn btn-sm btn-outline-secondary">Contrôle qualité</a>
+<a href="{% url 'rendement_leves' %}" class="btn btn-sm btn-outline-primary">Rendement détaillé</a>
+{% endblock %}
+
+{% block content %}
+{% include "terrain/_periode.html" %}
+
+<!-- Volet 1 : production terrain -->
+<h6 class="text-uppercase text-muted mb-2" style="font-size:.72rem;letter-spacing:.08em">
+  <i class="fa fa-satellite-dish me-1"></i>Production terrain — base PostGIS</h6>
+{% if terrain_ok %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-vector-square"></i></div>
+    <div class="val">{{ nb_leves }}</div><div class="lbl">parcelles levées sur la période</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric vert">
+    <div class="ico text-success"><i class="fa fa-ruler-combined"></i></div>
+    <div class="val">{{ surface_levee|floatformat:0 }}</div><div class="lbl">hectares levés</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric bleu2">
+    <div class="ico text-primary"><i class="fa fa-user-group"></i></div>
+    <div class="val">{{ nb_agents_actifs }}</div><div class="lbl">agents actifs</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric {% if taux_conformite < 80 %}rouge{% else %}vert{% endif %}">
+    <div class="ico text-secondary"><i class="fa fa-clipboard-check"></i></div>
+    <div class="val">{{ taux_conformite }}%</div><div class="lbl">levés conformes</div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-7"><div class="card h-100">
+    <div class="card-header">Courbe de production</div>
+    <div class="card-body"><canvas id="graphProd" height="110"></canvas></div>
+  </div></div>
+  <div class="col-lg-5"><div class="card h-100">
+    <div class="card-header">Agents les plus productifs</div>
+    <div class="card-body p-0">
+      <table class="table table-sm tbl-sm mb-0">
+        <tbody>{% for a in top_agents %}
+        <tr><td>{% if a.agent %}<a href="{% url 'rendement_agent' a.agent.pk %}">{{ a.nom }}</a>{% else %}<span class="text-muted">{{ a.nom }}</span>{% endif %}</td>
+            <td><span class="badge-dept dept-{{ a.departement }}">{{ a.departement }}</span></td>
+            <td class="text-end fw-semibold">{{ a.nb_parcelles }}</td>
+            <td class="text-end small text-muted">{{ a.moyenne_jour }}/j</td></tr>
+        {% empty %}<tr><td class="text-center text-muted py-3">Aucun levé</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+{% else %}
+<div class="alert alert-warning py-2 mb-4">
+  <strong><i class="fa fa-database me-2"></i>Volet terrain indisponible</strong>
+  <div class="small mt-1">{{ erreur_terrain }}</div>
+  <a href="{% url 'terrain_connexion' %}" class="btn btn-sm btn-outline-warning mt-2">Vérifier la connexion</a>
+</div>
+{% endif %}
+
+<!-- Volet 2 : instruction -->
+<h6 class="text-uppercase text-muted mb-2" style="font-size:.72rem;letter-spacing:.08em">
+  <i class="fa fa-file-signature me-1"></i>Instruction des demandes — exports Digifor</h6>
+{% if stats_nawa %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-metric">
+    <div class="val">{{ stats_nawa.nb_demandes }}</div><div class="lbl">demandes créées</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric bleu2">
+    <div class="val">{{ stats_nawa.nb_pvcl_termine }}</div><div class="lbl">PVCL terminés ({{ stats_nawa.taux_pvcl }}%)</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric vert">
+    <div class="val">{{ stats_nawa.nb_rdc_termine }}</div><div class="lbl">RDC terminés ({{ stats_nawa.taux_rdc }}%)</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric or">
+    <div class="val">{{ nb_publicite }}</div><div class="lbl">parcelles en publicité</div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header">Chaîne de traitement</div>
+    <div class="card-body">
+      {% for e in entonnoir %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between small mb-1">
+          <span>{{ e.etape }}</span><strong>{{ e.valeur }}</strong></div>
+        <div class="jauge"><span style="width:{{ e.largeur|unlocalize }}%;background:{{ e.couleur }}"></span></div>
+      </div>
+      {% endfor %}
+      <p class="small text-muted mb-0">
+        Les levés proviennent de la base terrain sur la période choisie ; les demandes, PVCL et RDC
+        de l'analyse « {{ session.nom }} ».
+      </p>
+    </div>
+  </div></div>
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header">Instruction par département</div>
+    <div class="card-body p-0">
+      <table class="table table-sm tbl-sm mb-0">
+        <thead><tr><th>Département</th><th class="text-end">Demandes</th><th class="text-end">PVCL</th>
+                   <th class="text-end">RDC</th><th style="width:110px">Avancement RDC</th></tr></thead>
+        <tbody>{% for s in stats_depts %}
+        <tr><td><span class="badge-dept dept-{{ s.departement }}">{{ s.departement }}</span></td>
+            <td class="text-end fw-semibold">{{ s.nb_demandes }}</td>
+            <td class="text-end">{{ s.nb_pvcl_termine }}</td>
+            <td class="text-end">{{ s.nb_rdc_termine }}</td>
+            <td><div class="jauge"><span style="width:{{ s.taux_rdc|unlocalize }}%;background:{% if s.taux_rdc >= 70 %}var(--vert2){% elif s.taux_rdc >= 40 %}var(--or){% else %}var(--rouge){% endif %}"></span></div>
+                <div class="small text-muted mt-1">{{ s.taux_rdc }}%</div></td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+{% else %}
+<div class="alert alert-secondary py-2 mb-4 d-flex justify-content-between align-items-center">
+  <span class="small"><i class="fa fa-circle-info me-2"></i>
+    Aucune analyse CSV terminée. Les indicateurs d'instruction apparaîtront après le premier traitement.</span>
+  <a href="{% url 'upload' %}" class="btn btn-sm btn-primary">Lancer une analyse</a>
+</div>
+{% endif %}
+
+<!-- Volet 3 : oppositions -->
+<h6 class="text-uppercase text-muted mb-2" style="font-size:.72rem;letter-spacing:.08em">
+  <i class="fa fa-scale-balanced me-1"></i>Oppositions et règlement de litige</h6>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-metric">
+    <div class="val">{{ opp.total }}</div><div class="lbl">oppositions sur la période</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric vert">
+    <div class="val">{{ opp.nb_reglees }}</div><div class="lbl">réglées</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric or">
+    <div class="val">{{ opp.nb_ouvertes }}</div><div class="lbl">encore ouvertes</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-metric bleu2">
+    <div class="val">{{ opp.delai_moyen }}</div><div class="lbl">jours de délai moyen</div></div></div>
+</div>
+<div class="text-end mb-4">
+  <a href="{% url 'oppositions_rendement' %}" class="btn btn-sm btn-outline-primary">Analyse détaillée des oppositions</a>
+</div>
+
+{% if terrain_ok and depts_terrain %}
+<h6 class="text-uppercase text-muted mb-2" style="font-size:.72rem;letter-spacing:.08em">
+  <i class="fa fa-map me-1"></i>Terrain par département</h6>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm tbl-sm mb-0">
+      <thead><tr><th>Département</th><th class="text-end">Parcelles levées</th><th class="text-end">Surface (ha)</th>
+                 <th class="text-end">Agents</th><th class="text-end">Villages</th>
+                 <th class="text-end">Conformité</th><th class="text-end">Score qualité</th></tr></thead>
+      <tbody>{% for d in depts_terrain %}
+      <tr><td><span class="badge-dept dept-{{ d.departement }}">{{ d.departement }}</span></td>
+          <td class="text-end fw-semibold">{{ d.nb_parcelles }}</td><td class="text-end">{{ d.surface_ha }}</td>
+          <td class="text-end">{{ d.nb_agents }}</td><td class="text-end">{{ d.nb_villages }}</td>
+          <td class="text-end">{{ d.taux_conformite }}%</td><td class="text-end">{{ d.score }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if terrain_ok %}
+<script>
+new Chart(document.getElementById('graphProd'), {
+  type:'line',
+  data:{labels:{{ graph_jours|safe }}, datasets:[{label:'Parcelles levées', data:{{ graph_leves|safe }},
+        borderColor:'#2E75B6', backgroundColor:'rgba(46,117,182,.14)', fill:true, tension:.3, pointRadius:2}]},
+  options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+});
+</script>
+{% endif %}
+{% endblock %}

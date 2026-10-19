@@ -1,0 +1,131 @@
+{% extends "analyse/base.html" %}
+{% load l10n %}
+{% block title %}Dashboard — PRESFOR CTB{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+
+{% if not session %}
+<div class="text-center py-5">
+  <i class="fa fa-chart-bar fa-4x text-secondary mb-3"></i>
+  <h4 class="text-secondary">Aucune analyse disponible</h4>
+  <p class="text-muted">Importez vos fichiers CSV Digifor pour démarrer.</p>
+  <a href="{% url 'upload' %}" class="btn btn-primary btn-lg mt-2">
+    <i class="fa fa-upload me-2"></i> Lancer une analyse
+  </a>
+</div>
+{% else %}
+
+<!-- Indicateurs NAWA -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="d-flex align-items-center mb-2">
+      <span class="badge dept-NAWA badge-dept me-2">RÉGION NAWA</span>
+      <small class="text-muted">{{ session.nom }} — {{ session.periode }}</small>
+      <a href="{% url 'session_detail' session.pk %}" class="ms-auto btn btn-sm btn-outline-primary">
+        <i class="fa fa-eye me-1"></i> Voir le détail
+      </a>
+    </div>
+  </div>
+  {% if stats_nawa %}
+  {% with s=stats_nawa %}
+  <div class="col-6 col-md-3"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-layer-group"></i></div>
+    <div class="val">{{ s.nb_parcelles }}</div>
+    <div class="lbl">Parcelles levées</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="card card-metric">
+    <div class="ico text-success"><i class="fa fa-file-alt"></i></div>
+    <div class="val">{{ s.nb_demandes }}</div>
+    <div class="lbl">Demandes créées</div>
+    {% if stats_nawa.nb_parcelles %}
+    <div class="small text-muted mt-1" style="font-size:.68rem">
+      couverture {{ stats_nawa.taux_couverture }} % des levés</div>
+    {% endif %}
+  </div></div>
+  <div class="col-6 col-md-3"><div class="card card-metric">
+    <div class="ico" style="color:var(--or)"><i class="fa fa-check-circle"></i></div>
+    <div class="val">{{ s.nb_rdc_termine }}</div>
+    <div class="lbl">RDC terminés</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="card card-metric">
+    <div class="ico text-info"><i class="fa fa-map"></i></div>
+    <div class="val">{{ s.superficie_enquetee|floatformat:1 }}</div>
+    <div class="lbl">Superficie enquêtée (ha)</div>
+  </div></div>
+  {% endwith %}
+  {% endif %}
+</div>
+
+<!-- Graphiques + Cartes départements -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-8">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-chart-bar me-2"></i>Comparaison par département</h6>
+      <canvas id="chartDepts" height="120"></canvas>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="card p-3 h-100">
+      <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-history me-2"></i>Analyses récentes</h6>
+      {% for s in sessions %}
+      <div class="d-flex align-items-center mb-2 pb-2 border-bottom">
+        <div>
+          <div class="fw-semibold" style="font-size:.85rem">{{ s.nom }}</div>
+          <small class="text-muted">{{ s.date_creation|date:"d/m/Y H:i" }} — {{ s.nb_csv }} CSV</small>
+        </div>
+        <a href="{% url 'session_detail' s.pk %}" class="btn btn-sm btn-outline-secondary ms-auto">
+          <i class="fa fa-eye"></i>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Cartes par département -->
+<div class="row g-3">
+  {% for s in stats_depts %}
+  <div class="col-12 col-md-4">
+    <div class="card p-3">
+      <div class="d-flex align-items-center mb-3">
+        <span class="badge dept-{{ s.departement }} badge-dept me-2">{{ s.departement }}</span>
+        <a href="{% url 'departement' session.pk s.departement %}" class="ms-auto btn btn-sm btn-outline-primary">
+          Analyser <i class="fa fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+      <div class="row text-center g-2 mb-3">
+        <div class="col-4"><div class="fw-bold" style="font-size:1.3rem;color:var(--bleu)">{{ s.nb_parcelles }}</div><small class="text-muted">Parcelles</small></div>
+        <div class="col-4"><div class="fw-bold" style="font-size:1.3rem;color:var(--bleu)">{{ s.nb_demandes }}</div><small class="text-muted">Demandes</small></div>
+        <div class="col-4"><div class="fw-bold" style="font-size:1.3rem;color:var(--bleu)">{{ s.nb_rdc_termine }}</div><small class="text-muted">RDC ✓</small></div>
+      </div>
+      <div class="mb-1 d-flex justify-content-between"><small>RDC</small><small>{{ s.taux_rdc }}%</small></div>
+      <div class="progress mb-2"><div class="progress-bar bg-warning" style="width:{{ s.taux_rdc|unlocalize }}%"></div></div>
+      <div class="mb-1 d-flex justify-content-between"><small>PVCL</small><small>{{ s.taux_pvcl }}%</small></div>
+      <div class="progress"><div class="progress-bar bg-success" style="width:{{ s.taux_pvcl|unlocalize }}%"></div></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if session %}
+<script>
+fetch("{% url 'api_stats' session.pk %}").then(r=>r.json()).then(d=>{
+  new Chart(document.getElementById('chartDepts'),{
+    type:'bar',
+    data:{
+      labels:d.labels,
+      datasets:[
+        {label:'Demandes',data:d.demandes,backgroundColor:'#2E75B6',borderRadius:4},
+        {label:'RDC terminé',data:d.rdc_termine,backgroundColor:'#70AD47',borderRadius:4},
+        {label:'PVCL terminé',data:d.pvcl_termine,backgroundColor:'#FFC000',borderRadius:4},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{x:{grid:{display:false}},y:{beginAtZero:true}}}
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

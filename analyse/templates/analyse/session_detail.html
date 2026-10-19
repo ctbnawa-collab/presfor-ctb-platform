@@ -1,0 +1,196 @@
+{% extends "analyse/base.html" %}
+{% load l10n %}
+{% block title %}{{ session.nom }} — PRESFOR CTB{% endblock %}
+{% block page_title %}{{ session.nom }}{% endblock %}
+{% block content %}
+
+{% if session.rapprochement %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center" style="background:var(--gris)">
+    <h6 class="fw-bold mb-0" style="color:var(--bleu)">
+      <i class="fa fa-link me-2"></i>Rapprochement demande ↔ parcelle</h6>
+    <span class="small
+      {% if session.rapprochement.taux_rapproche < 70 %}text-danger
+      {% elif session.rapprochement.taux_rapproche < 95 %}text-warning
+      {% else %}text-success{% endif %}">
+      {{ session.rapprochement.taux_rapproche }} % des demandes rattachées à une parcelle</span>
+  </div>
+  <div class="card-body">
+    <p class="small text-muted mb-3">
+      Le code parcelle seul n'identifie pas une parcelle : il n'est unique qu'au sein d'un
+      village. Le rapprochement utilise donc la clé <strong>code parcelle + village +
+      sous-préfecture</strong>, avec repli progressif. Ce tableau montre à quel niveau
+      chaque demande a été rattachée.
+    </p>
+    <table class="table table-sm tbl-sm mb-0">
+      <thead><tr><th>Niveau de correspondance</th><th class="text-end">Demandes</th>
+                 <th style="width:180px">Part</th></tr></thead>
+      <tbody>
+      {% for n in session.qualite_rapprochement %}
+      <tr class="{% if n.code == 'ambigu' or n.code == 'absent' %}{% if n.nb %}table-warning{% endif %}{% endif %}">
+        <td>{{ n.libelle }}</td>
+        <td class="text-end fw-semibold">{{ n.nb }}</td>
+        <td>
+          <div class="progress" style="height:7px;background:#eef2f6">
+            <div class="progress-bar
+              {% if n.code == 'exact' %}bg-success{% elif n.code == 'ambigu' or n.code == 'absent' %}bg-danger{% else %}bg-info{% endif %}"
+              style="width:{{ n.pct|unlocalize }}%"></div></div>
+          <span class="small text-muted">{{ n.pct }} %</span>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="small text-muted mt-3 mb-0">
+      Un volume élevé en « code porté par plusieurs parcelles » ou « aucune parcelle ne porte
+      ce code » signale un écart d'écriture entre <code>numParcelleOF</code> des CSV et
+      <code>code_parcelle</code> de la source parcelles, ou un village mal renseigné.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+
+<div class="d-flex align-items-center mb-3 gap-2">
+  <span class="badge dept-NAWA badge-dept">NAWA</span>
+  <span class="text-muted small">{{ session.periode }} — {{ session.nb_csv }} fichier(s) CSV</span>
+  <a href="{% url 'region_nawa' session.pk %}" class="ms-auto btn btn-primary btn-sm">
+    <i class="fa fa-globe-africa me-1"></i> Vue régionale NAWA
+  </a>
+  <form method="post" action="{% url 'delete_session' session.pk %}" class="d-inline"
+        onsubmit="return confirm('Supprimer cette analyse ?')">
+    {% csrf_token %}
+    <button class="btn btn-sm btn-outline-danger"><i class="fa fa-trash"></i></button>
+  </form>
+</div>
+
+<!-- Métriques NAWA -->
+{% if stats_nawa %}{% with s=stats_nawa %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2"><div class="card card-metric">
+    <div class="ico text-primary"><i class="fa fa-layer-group"></i></div>
+    <div class="val">{{ s.nb_parcelles }}</div><div class="lbl">Parcelles</div>
+  </div></div>
+  <div class="col-6 col-md-2"><div class="card card-metric">
+    <div class="ico text-success"><i class="fa fa-file-alt"></i></div>
+    <div class="val">{{ s.nb_demandes }}</div><div class="lbl">Demandes</div>
+  </div></div>
+  <div class="col-6 col-md-2"><div class="card card-metric">
+    <div class="ico text-warning"><i class="fa fa-clock"></i></div>
+    <div class="val">{{ s.nb_rdc_encours }}</div><div class="lbl">RDC en cours</div>
+  </div></div>
+  <div class="col-6 col-md-2"><div class="card card-metric">
+    <div class="ico" style="color:var(--vert)"><i class="fa fa-check-circle"></i></div>
+    <div class="val">{{ s.nb_rdc_termine }}</div><div class="lbl">RDC terminés</div>
+  </div></div>
+  <div class="col-6 col-md-2"><div class="card card-metric">
+    <div class="ico text-info"><i class="fa fa-search"></i></div>
+    <div class="val">{{ s.nb_pvcl_termine }}</div><div class="lbl">PVCL terminés</div>
+  </div></div>
+  <div class="col-6 col-md-2"><div class="card card-metric">
+    <div class="ico text-secondary"><i class="fa fa-ruler-combined"></i></div>
+    <div class="val">{{ s.superficie_enquetee|floatformat:0 }}</div><div class="lbl">Ha enquêtés</div>
+  </div></div>
+</div>
+{% endwith %}{% endif %}
+
+<!-- Synthèse par département -->
+<div class="row g-3 mb-4">
+  {% for s in stats_depts %}
+  <div class="col-12 col-md-4">
+    <div class="card">
+      <div class="card-header d-flex align-items-center" style="background:var(--gris)">
+        <span class="badge dept-{{ s.departement }} badge-dept">{{ s.departement }}</span>
+        <a href="{% url 'departement' session.pk s.departement %}" class="ms-auto btn btn-xs btn-sm btn-outline-primary" style="font-size:.75rem">
+          Analyser <i class="fa fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+      <div class="card-body p-3">
+        <table class="table table-sm table-borderless mb-0 tbl-sm">
+          <tr><td class="text-muted">Parcelles levées</td><td class="fw-bold text-end">{{ s.nb_parcelles }}</td></tr>
+          <tr><td class="text-muted">Superficie levée (ha)</td><td class="fw-bold text-end">{{ s.superficie_levee|floatformat:2 }}</td></tr>
+          <tr><td class="text-muted">Demandes créées</td><td class="fw-bold text-end">{{ s.nb_demandes }}</td></tr>
+          <tr><td class="text-muted">Parcelles couvertes par une demande</td>
+              <td class="fw-bold text-end">{{ s.nb_parcelles_avec_demande }}
+                <span class="text-muted fw-normal">/ {{ s.nb_parcelles }}</span></td></tr>
+          <tr><td class="text-muted">Taux de couverture</td>
+              <td class="text-end fw-bold {% if s.taux_couverture < 60 %}text-danger{% elif s.taux_couverture < 90 %}text-warning{% else %}text-success{% endif %}">
+                {{ s.taux_couverture }} %</td></tr>
+          {% if s.nb_parcelles_sans_demande %}
+          <tr><td class="text-muted">Levées sans demande</td>
+              <td class="text-end fw-bold text-danger">{{ s.nb_parcelles_sans_demande }}</td></tr>
+          {% endif %}
+        </table>
+
+        <!-- RDC breakdown -->
+        <div class="mt-2 px-1">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <small class="fw-semibold" style="color:var(--bleu)">RDC</small>
+            <small class="text-success fw-bold">{{ s.nb_rdc_termine }} terminés</small>
+          </div>
+          <div class="d-flex gap-1 mb-1" style="font-size:.72rem">
+            <span class="badge bg-danger bg-opacity-75">À créer : {{ s.nb_rdc_a_creer }}</span>
+            <span class="badge bg-warning text-dark">En cours : {{ s.nb_rdc_encours }}</span>
+            <span class="badge bg-success">Terminé : {{ s.nb_rdc_termine }}</span>
+          </div>
+          <div class="progress mb-1" style="height:7px;background:#f0f0f0">
+            <div class="progress-bar bg-danger" style="width:{{ s.taux_rdc_a_creer|unlocalize }}%" title="À créer"></div>
+            <div class="progress-bar bg-warning" style="width:{{ s.taux_rdc_encours|unlocalize }}%" title="En cours"></div>
+            <div class="progress-bar bg-success" style="width:{{ s.taux_rdc|unlocalize }}%" title="Terminé"></div>
+          </div>
+        </div>
+
+        <!-- PVCL breakdown -->
+        <div class="px-1">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <small class="fw-semibold" style="color:var(--bleu)">PVCL</small>
+            <small class="text-success fw-bold">{{ s.nb_pvcl_termine }} terminés</small>
+          </div>
+          <div class="d-flex gap-1 mb-1" style="font-size:.72rem">
+            <span class="badge bg-danger bg-opacity-75">À créer : {{ s.nb_pvcl_a_creer }}</span>
+            <span class="badge bg-warning text-dark">En cours : {{ s.nb_pvcl_encours }}</span>
+            <span class="badge bg-success">Terminé : {{ s.nb_pvcl_termine }}</span>
+          </div>
+          <div class="progress" style="height:7px;background:#f0f0f0">
+            <div class="progress-bar bg-danger" style="width:{{ s.taux_pvcl_a_creer|unlocalize }}%" title="À créer"></div>
+            <div class="progress-bar bg-warning" style="width:{{ s.taux_pvcl_encours|unlocalize }}%" title="En cours"></div>
+            <div class="progress-bar bg-success" style="width:{{ s.taux_pvcl|unlocalize }}%" title="Terminé"></div>
+          </div>
+        </div>
+
+        <!-- Superficie enquêtée -->
+        <div class="mt-2 px-1 py-1 rounded" style="background:#FFFDE7">
+          <div class="d-flex justify-content-between">
+            <small class="fw-bold">Superficie enquêtée (ha)</small>
+            <small class="fw-bold" style="color:#E65100">{{ s.superficie_enquetee|floatformat:2 }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Graphique -->
+<div class="card p-3">
+  <h6 class="fw-bold mb-3" style="color:var(--bleu)"><i class="fa fa-chart-bar me-2"></i>Comparaison des départements</h6>
+  <canvas id="chart" height="80"></canvas>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+fetch("{% url 'api_stats' session.pk %}").then(r=>r.json()).then(d=>{
+  new Chart(document.getElementById('chart'),{
+    type:'bar', data:{labels:d.labels,
+      datasets:[
+        {label:'Demandes',data:d.demandes,backgroundColor:'#2E75B6',borderRadius:4},
+        {label:'RDC terminé',data:d.rdc_termine,backgroundColor:'#70AD47',borderRadius:4},
+        {label:'PVCL terminé',data:d.pvcl_termine,backgroundColor:'#FFC000',borderRadius:4},
+        {label:'Sup. enquêtée (ha)',data:d.superficie_enquetee,backgroundColor:'#9C27B0',borderRadius:4},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{x:{grid:{display:false}},y:{beginAtZero:true}}}
+  });
+});
+</script>
+{% endblock %}

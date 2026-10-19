@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rendements des agents — Suivi hebdomadaire</title>
+<style>
+:root{--bg:#f6f6f3;--cd:#fff;--tx:#1d2125;--mu:#667085;--bd:#e4e4e0;--ac:#0f6e56;--or:#fcd9a6;--ort:#7c3a05;--ye:#fff08a;--yet:#5f4a05;--gr:#a7f0c0;--grt:#0b4a25;--rd:#fde2e2;--rdt:#8f1d1d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181a;--cd:#202326;--tx:#ecece8;--mu:#9aa0a6;--bd:#33373b;--ac:#4cc9a0;--or:#6b4410;--ort:#ffd9a0;--ye:#5c5208;--yet:#fff08a;--gr:#14532d;--grt:#bbf7d0;--rd:#5a2020;--rdt:#fecaca}}
+:root[data-theme="dark"]{--bg:#16181a;--cd:#202326;--tx:#ecece8;--mu:#9aa0a6;--bd:#33373b;--ac:#4cc9a0;--or:#6b4410;--ort:#ffd9a0;--ye:#5c5208;--yet:#fff08a;--gr:#14532d;--grt:#bbf7d0;--rd:#5a2020;--rdt:#fecaca}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 16px 8px}h1{font-size:19px;margin:0}h1 small{display:block;font-weight:400;color:var(--mu);font-size:12px;margin-top:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;padding:8px 16px;align-items:end}
+.bar label{display:flex;flex-direction:column;font-size:11px;color:var(--mu);gap:2px}
+input,select,button{font:inherit;color:var(--tx);background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:6px 9px;min-height:34px}
+button{cursor:pointer}button.p{background:var(--ac);color:#fff;border-color:var(--ac)}button.s{padding:2px 8px;min-height:26px;font-size:12px}
+.tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--bd);overflow-x:auto}
+.tabs button{border:0;border-radius:8px 8px 0 0;background:none;white-space:nowrap}.tabs button.on{background:var(--cd);font-weight:600;box-shadow:inset 0 -2px var(--ac)}
+main{padding:14px 16px 40px;max-width:1600px;margin:auto}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.wk{font-size:15px;font-weight:700;margin:18px 0 8px}.wk span{font-weight:400;color:var(--mu);font-size:12px;margin-left:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.kpi b{display:block;font-size:22px}.kpi span{color:var(--mu);font-size:12px}
+.leg{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin:6px 0 12px}
+.chip{padding:2px 9px;border-radius:99px;font-size:12px;display:inline-block}
+.o{background:var(--or);color:var(--ort)}.y{background:var(--ye);color:var(--yet)}.g{background:var(--gr);color:var(--grt)}.r{background:var(--rd);color:var(--rdt)}.n{background:var(--bd);color:var(--mu)}
+.best{border-left:4px solid var(--ac)}.best h3{margin:0 0 4px;font-size:12px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.04em}.best .nm{font-size:17px;font-weight:700}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:5px 6px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}th{white-space:normal;vertical-align:bottom}.cc td:first-child,.cc th:first-child{white-space:normal}.cc{margin:0}.cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:10px;margin-bottom:12px}th{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.03em}td.num,th.num{text-align:right}
+tr.o td{background:var(--or);color:var(--ort)}tr.y td{background:var(--ye);color:var(--yet)}tr.g td{background:var(--gr);color:var(--grt);font-weight:600}
+tr.sup td{font-weight:700;border-top:2px solid var(--bd)}tr.dep td{background:var(--bd);font-weight:700;color:var(--tx)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.form label{display:flex;flex-direction:column;font-size:11px;color:var(--mu);gap:2px}
+.mu{color:var(--mu)}.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:99px;z-index:9}
+.ph{display:flex;gap:6px;flex-wrap:wrap}
+</style></head><body>
+<header><h1>Rendements des agents<small>Département › Superviseur › Agent — objectifs hebdomadaires, RDC et primes</small></h1></header>
+<div class="bar">
+<label>Semaine<select id="fw"></select></label>
+<label>Date création du<input type="date" id="ff"></label>
+<label>au<input type="date" id="ft"></label>
+<label>Recherche (agent, superviseur, N°)<input id="fq" placeholder="ex. ELVIS"></label>
+<button id="fr">Réinitialiser</button>
+</div>
+<div class="tabs" id="tabs"></div>
+<p id="issues" role="status" style="padding:0 16px;overflow-wrap:anywhere"></p><main id="m"></main>
+<div id="tt"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const BASE=[];let REFERENCE=[];
+const DEPTS={BUYO:'Buyo',SOUBRE:'Soubré',MEAGUI:'Méagui'},ST={c:'À créer',e:'En cours',t:'Terminé'};
+let cfg={obj:{BUYO:150,SOUBRE:150,MEAGUI:300},seuil:100},over={},DB=null;
+const S={tab:'syn',w:'',from:'',to:'',q:'',edit:null,lim:100};
+const TODAY=new Date().toISOString().slice(0,10);
+const WK=[{k:'14-au-18 setp',s:'2026-09-14',e:'2026-09-18'},{k:'19-au-25 setp',s:'2026-09-19',e:'2026-09-25'},{k:'26 sept-au-04 oct',s:'2026-09-26',e:'2026-10-04'}];
+const addD=(i,n)=>{const d=new Date(i+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+function ensure(u,minLen){while(WK[WK.length-1].e<u||WK.length<(minLen||0)){const s=addD(WK[WK.length-1].e,1),e=addD(s,6);WK.push({k:s+'_'+e,s,e})}}
+const fmt=d=>d?d.split('-').reverse().join('/'):'';
+const wl=w=>{const x=WK.find(v=>v.k===w);return x?fmt(x.s).slice(0,5)+' → '+fmt(x.e).slice(0,5):w};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function applyWeeks(){
+  Object.entries(cfg.weeks||{}).forEach(([k,x])=>{const v=WK.find(y=>y.k===k);if(v){v.s=x.s;v.e=x.e}else WK.push({k,s:x.s,e:x.e})});
+  WK.sort((a,b)=>a.s.localeCompare(b.s));
+}
+async function saveCfg(){
+  if(DB){try{await DB.doc('config/params').set(cfg)}catch(e){toast('Écriture refusée : droits insuffisants.');return false}}
+  else{try{localStorage.setItem('rv_cfg',JSON.stringify(cfg))}catch(e){}}
+  return true;
+}
+const weekOf=d=>{ensure(d);const x=WK.find(v=>d>=v.s&&d<=v.e);return x?x.k:WK[0].k};
+const all=()=>{const m=new Map(BASE.map(r=>[r.n,r]));Object.values(over).forEach(r=>m.set(r.n,r));return [...m.values()]};
+const obj=d=>Number(cfg.obj[d]||150);
+const cls=(a,b)=>a&&b?'g':a?'o':b?'y':'';
+function calc(week){
+  const wi=WK.findIndex(v=>v.k===week);ensure(TODAY,wi+2);
+  const grace=WK[wi+1].e,late=TODAY>grace;
+  const rows=all().filter(r=>r.w===week&&(!S.from||r.dt>=S.from)&&(!S.to||r.dt<=S.to));
+  const A=new Map();
+  rows.forEach(r=>{const k=r.d+'|'+r.s+'|'+r.a;let x=A.get(k);if(!x)A.set(k,x={d:r.d,s:r.s,a:r.a,ha:0,n:0,rt:0,re:0,rc:0,pt:0,pe:0,pc:0});x.ha+=+r.ha||0;x.n++;if(r.r==='t')x.rt++;else if(r.r==='e')x.re++;else x.rc++;if(r.p==='t')x.pt++;else if(r.p==='e')x.pe++;else x.pc++});
+  const ag=[...A.values()].map(x=>{x.obj=obj(x.d);x.pct=x.ha/x.obj*100;x.so=x.ha>=x.obj;x.ro=x.n>0&&x.rt===x.n;x.st=x.ro?'ok':late?'manque':'delai';x.po=x.n>0&&x.pt===x.n;x.ps=x.po?'ok':late?'manque':'delai';x.ko=x.ro&&x.po;x.pend=x.so&&!x.ko&&x.st!=='manque'&&x.ps!=='manque';x.note=(x.pct+(x.n?x.pt/x.n*100:0)+(x.n?x.rt/x.n*100:0))/3;x.c=cls(x.so,x.ko);return x});
+  const P=new Map();
+  ag.forEach(x=>{const k=x.d+'|'+x.s;let p=P.get(k);if(!p)P.set(k,p={d:x.d,s:x.s,ag:[],ha:0,ob:0,so:0,ro:0,n:0,rt:0,re:0,rc:0,pt:0,pe:0,pc:0,po:0});p.ag.push(x);p.ha+=x.ha;p.ob+=x.obj;p.so+=x.so;p.ro+=x.ro;p.n+=x.n;p.rt+=x.rt;p.re+=x.re;p.rc+=x.rc;p.pt+=x.pt;p.pe+=x.pe;p.pc+=x.pc;p.po+=x.po});
+  const sp=[...P.values()].map(p=>{p.pct=p.ha/p.ob*100;p.pso=p.so/p.ag.length*100;p.pro=p.ro/p.ag.length*100;p.sok=p.pso>=cfg.seuil;p.ppo=p.po/p.ag.length*100;p.rok=p.pro>=cfg.seuil&&p.ppo>=cfg.seuil;p.note=(p.pct+(p.n?p.pt/p.n*100:0)+(p.n?p.rt/p.n*100:0))/3;p.c=cls(p.sok,p.rok);p.st=p.pro>=cfg.seuil?'ok':late?'manque':'delai';p.ps=p.ppo>=cfg.seuil?'ok':late?'manque':'delai';return p});
+  const rk=(l)=>[...l].sort((a,b)=>b.note-a.note||b.pct-a.pct);
+  const D=Object.keys(DEPTS).map(d=>{const a=ag.filter(x=>x.d===d);if(!a.length)return null;const t={d,na:a.length,ns:new Set(a.map(x=>x.s)).size,ha:0,ob:0,so:0,ro:0,n:0,rt:0,re:0,rc:0,pt:0,pe:0,pc:0,po:0,g:0};a.forEach(x=>{t.ha+=x.ha;t.ob+=x.obj;t.so+=x.so;t.ro+=x.ro;t.n+=x.n;t.rt+=x.rt;t.re+=x.re;t.rc+=x.rc;t.pt+=x.pt;t.pe+=x.pe;t.pc+=x.pc;t.po+=x.po;t.g+=x.c==='g'});t.pct=t.ha/t.ob*100;t.note=(t.pct+(t.n?t.pt/t.n*100:0)+(t.n?t.rt/t.n*100:0))/3;return t}).filter(Boolean);
+  return{week,rows,ag:rk(ag),sp:rk(sp),D,late,grace};
+}
+const wlist=()=>{const set=new Set(all().map(r=>r.w));return WK.filter(v=>set.has(v.k))};
+function badge(st,g,l){l=l||'RDC';return st==='ok'?'<span class="chip y" title="'+l+' tous terminés">'+l+' ✓</span>':st==='delai'?'<span class="chip n" title="'+l+' à solder avant le '+fmt(g)+'">'+l+' S+1</span>':'<span class="chip r" title="'+l+' non soldés">'+l+' ✗</span>'}
+function agTable(W){
+  const q=S.q.toLowerCase(),H=[];
+  const ok=(...v)=>!q||v.join(' ').toLowerCase().includes(q);
+  Object.keys(DEPTS).forEach(d=>{
+    const sps=W.sp.filter(p=>p.d===d&&(ok(p.s)||p.ag.some(x=>ok(x.a))));if(!sps.length)return;
+    const T=W.D.find(t=>t.d===d);H.push('<tr class="dep"><td>'+DEPTS[d]+' <span class="mu">— obj. '+obj(d)+' ha / agent</span></td><td class="num">'+T.ha.toFixed(2)+' / '+T.ob+'</td><td class="num">'+T.pct.toFixed(0)+'%</td><td class="num">'+T.note.toFixed(0)+'</td><td class="num">'+T.n+' dem.</td><td class="num">'+T.pt+'/'+T.n+'</td><td class="num">'+T.pe+'</td><td class="num">'+T.rt+'/'+T.n+'</td><td class="num">'+T.re+'</td><td></td><td>'+T.g+' prime(s)</td></tr>');
+    sps.forEach(p=>{
+      H.push('<tr class="sup '+p.c+'"><td>👤 '+esc(p.s)+' <span class="mu">(superviseur)</span></td><td class="num">'+p.ha.toFixed(2)+' / '+p.ob+'</td><td class="num">'+p.pct.toFixed(0)+'%</td><td class="num">'+p.note.toFixed(0)+'</td><td class="num">'+p.so+'/'+p.ag.length+' agents</td><td class="num">'+p.pt+'/'+p.n+'</td><td class="num">'+p.pe+'</td><td class="num">'+p.rt+'/'+p.n+'</td><td class="num">'+p.re+'</td><td>'+badge(p.st,W.grace)+' '+badge(p.ps,W.grace,'PVCL')+'</td><td>'+(p.c==='g'?'🏅 PRIME':'')+'</td></tr>');
+      p.ag.filter(x=>ok(x.a,p.s)).forEach(x=>H.push('<tr class="'+x.c+'"><td>&nbsp;&nbsp;&nbsp;'+esc(x.a)+'</td><td class="num">'+x.ha.toFixed(2)+' / '+x.obj+'</td><td class="num">'+x.pct.toFixed(0)+'%</td><td class="num">'+x.note.toFixed(0)+'</td><td class="num">'+x.n+' dem.</td><td class="num">'+x.pt+'/'+x.n+'</td><td class="num">'+x.pe+'</td><td class="num">'+x.rt+'/'+x.n+'</td><td class="num">'+x.re+'</td><td>'+badge(x.st,W.grace)+' '+badge(x.ps,W.grace,'PVCL')+'</td><td>'+(x.c==='g'?'🏅 PRIME':x.pend?'prime en attente':'')+'</td></tr>'))});
+  });
+  return '<div class="card tw"><table><thead><tr><th>Département / Superviseur / Agent</th><th class="num">Superficie (ha) / objectif</th><th class="num">Taux</th><th class="num" title="Moyenne des taux superficie, PVCL terminés, RDC terminés">Note</th><th class="num">Demandes</th><th class="num">PVCL terminés</th><th class="num">PVCL en cours</th><th class="num">RDC terminés</th><th class="num">RDC en cours</th><th>Statut RDC / PVCL (S+1 = délai)</th><th>Prime</th></tr></thead><tbody>'+(H.join('')||'<tr><td colspan="11" class="mu">Aucun résultat</td></tr>')+'</tbody></table></div>';
+}
+function syn(W){
+  const pa=W.ag.filter(x=>x.c==='g'),ps=W.sp.filter(x=>x.c==='g');
+  const tot=W.ag.reduce((t,x)=>t+x.ha,0),nd=W.ag.reduce((t,x)=>t+x.n,0),pv=W.ag.reduce((t,x)=>t+x.pt,0);
+  const rate=(a,b)=>b?(a/b*100).toFixed(0)+'%':'—';
+  const card=(t,x,sup,prov)=>{
+    if(!x)return '<div class="card best"><h3>'+t+'</h3><div class="mu">Aucune donnée.</div></div>';
+    return '<div class="card best"><h3>'+t+'</h3><div class="nm">'+(prov?'⏳ ':'🏆 ')+esc(sup?x.s:x.a)+'</div><div class="mu">'+DEPTS[x.d]+(sup?'':' · '+esc(x.s))+'</div>'
+     +'<div><b>Note '+x.note.toFixed(1)+'</b> — superficie '+x.pct.toFixed(0)+'% ('+x.ha.toFixed(1)+' ha) · PVCL '+rate(x.pt,x.n)+' · RDC '+rate(x.rt,x.n)+'</div>'
+     +'<div style="margin-top:6px">'+(prov?'<span class="chip n">Provisoire : les 3 objectifs ne sont pas tous atteints</span>':'<span class="chip g">Prime meilleur '+(sup?'superviseur':'agent')+'</span>')+'</div></div>'};
+  const list=(a,sup)=>a.length?a.map(x=>'<div><span class="chip g">'+esc(sup?x.s:x.a)+'</span> <span class="mu">'+DEPTS[x.d]+(sup?'':' · '+esc(x.s))+' · '+x.ha.toFixed(1)+' ha · note '+x.note.toFixed(0)+'</span></div>').join(''):'<span class="mu">Aucun pour le moment</span>';
+  return '<div class="grid"><div class="card kpi"><b>'+tot.toFixed(1)+' ha</b><span>Superficie totale</span></div><div class="card kpi"><b>'+W.ag.filter(x=>x.so).length+' / '+W.ag.length+'</b><span>Agents ayant atteint la superficie</span></div><div class="card kpi"><b>'+W.ag.filter(x=>x.ro).length+' / '+W.ag.length+'</b><span>Agents RDC soldés</span></div><div class="card kpi"><b>'+pv+' / '+nd+'</b><span>PVCL terminés</span></div><div class="card kpi"><b>'+pa.length+' + '+ps.length+'</b><span>Agents + superviseurs en PRIME (vert)</span></div></div>'
+  +'<div class="grid">'+card('Meilleur agent de la semaine',pa[0]||W.ag[0],0,!pa[0])+card('Meilleur superviseur de la semaine',ps[0]||W.sp[0],1,!ps[0])+'</div>'
+  +'<div class="mu" style="font-size:12px;margin-bottom:10px">Le meilleur est celui qui atteint les trois objectifs (superficie, PVCL, RDC) avec la meilleure note = moyenne des taux superficie, PVCL terminés et RDC terminés. Tant que personne ne les atteint, le meilleur provisoire est affiché sans prime.</div>'
+  +'<div class="grid"><div class="card"><b>🏅 PRIME — Agents</b><div class="ph" style="flex-direction:column;margin-top:6px">'+list(pa,0)+'</div></div><div class="card"><b>🏅 PRIME — Superviseurs</b><div class="ph" style="flex-direction:column;margin-top:6px">'+list(ps,1)+'</div></div></div>';
+}
+function det(){
+  const e=S.edit||{},q=S.q.toLowerCase(),ags=[...new Set(all().map(r=>r.a))].sort(),sps=[...new Set(all().map(r=>r.s))].sort();
+  const o=(m,v)=>Object.entries(m).map(([k,t])=>'<option value="'+k+'"'+(v===k?' selected':'')+'>'+t+'</option>').join('');
+  const wsel=WK.map(v=>'<option value="'+v.k+'"'+((e.w||weekOf(e.dt||TODAY))===v.k?' selected':'')+'>'+wl(v.k)+'</option>').join('');
+  let rows=all().filter(r=>(!S.w||r.w===S.w)&&(!S.from||r.dt>=S.from)&&(!S.to||r.dt<=S.to)&&(!q||(r.a+' '+r.s+' '+r.n).toLowerCase().includes(q))).sort((a,b)=>b.dt.localeCompare(a.dt)||a.a.localeCompare(b.a));
+  const tot=rows.length;rows=rows.slice(0,S.lim);
+  return (S.editing?'':modeBar()+(S.mode==='xl'?xlForm():teamForm()))+'<div class="card"'+(S.editing?'':' hidden')+'><b>Modifier la demande '+esc(e.n||'')+'</b><div class="form" style="margin-top:8px">'
+  +'<label>N° demande<input id="x_n" value="'+esc(e.n||'')+'" placeholder="381-012-042050"></label>'
+  +'<label>Date de création<input type="date" id="x_dt" value="'+(e.dt||TODAY)+'"></label>'
+  +'<label>Semaine<select id="x_w">'+wsel+'</select></label>'
+  +'<label>Département<select id="x_d">'+o(DEPTS,e.d||'SOUBRE')+'</select></label>'
+  +'<label>Superviseur du référentiel<input id="x_s" readonly list="ls" value="'+esc(e.s||'')+'"></label>'
+  +'<label>Agent<input id="x_a" list="la" value="'+esc(e.a||'')+'"></label>'
+  +'<label>Superficie (ha)<input type="number" step="0.0001" min="0" id="x_ha" readonly value="'+(e.ha??'')+'"></label>'
+  +'<label>PVCL<select id="x_p">'+o(ST,e.p||'c')+'</select></label>'
+  +'<label>RDC<select id="x_r">'+o(ST,e.r||'c')+'</select></label></div>'
+  +'<datalist id="la">'+ags.map(a=>'<option value="'+esc(a)+'">').join('')+'</datalist><datalist id="ls">'+sps.map(a=>'<option value="'+esc(a)+'">').join('')+'</datalist>'
+  +'<div class="ph" style="margin-top:10px"><button class="p" id="sv">Enregistrer</button><button id="cx">Vider</button></div><div class="mu" style="margin-top:6px;font-size:12px">Un N° de demande existant est mis à jour (ex. RDC passé à « Terminé »). Département et superviseur se remplissent seuls si l\'agent existe déjà.</div></div>'
+  +'<div class="card tw"><div class="mu" style="margin-bottom:6px">'+tot+' demande(s) — filtre semaine / dates / recherche appliqué</div><table><thead><tr><th>Date</th><th>N° demande</th><th>Agent</th><th>Superviseur</th><th>Dépt</th><th class="num">ha</th><th>PVCL</th><th>RDC</th><th>Origine</th><th></th></tr></thead><tbody>'
+  +rows.map(r=>{const ov=over[r.n],isB=BASE.some(b=>b.n===r.n);return '<tr><td>'+fmt(r.dt)+'</td><td>'+esc(r.n)+'</td><td>'+esc(r.a)+'</td><td>'+esc(r.s)+'</td><td>'+DEPTS[r.d]+'</td><td class="num">'+(+r.ha).toFixed(3)+'</td><td>'+ST[r.p]+'</td><td>'+ST[r.r]+'</td><td>'+(r.source==='controle_qualite_8.3'?'Contrôle qualité 8.3':'Saisie ou import manuel')+'</td><td><button class="s" data-ed="'+esc(r.n)+'">Modifier</button> '+(r.source!=='controle_qualite_8.3'?'<button class="s" data-del="'+esc(r.n)+'">'+'Supprimer la saisie'+'</button>':'')+'</td></tr>'}).join('')
+  +'</tbody></table>'+(tot>S.lim?'<div style="margin-top:8px"><button id="mo">Afficher plus</button></div>':'')+'</div>';
+}
+function cmpView(){
+  const ws=wlist().map(v=>v.k),sel=S.cw||ws,cm=S.cm||'pct',PAL=['#0f6e56','#d97706','#2563eb','#9333ea','#dc2626','#0891b2'];
+  const Ws=ws.filter(k=>sel.includes(k)).map(k=>calc(k));
+  const o=(a,v)=>a.map(([k,t])=>'<option value="'+k+'"'+(v===k?' selected':'')+'>'+t+'</option>').join('');
+  const h='<div class="card"><div class="form"><label>Indicateur du graphique<select id="c_m">'+o([['pct','% de l\'objectif de superficie'],['ha','Superficie (ha)'],['rdc','% de RDC terminés']],cm)+'</select></label></div><div class="ph" style="margin-top:8px">'
+   +ws.map(k=>'<label class="chip n" style="cursor:pointer"><input type="checkbox" style="min-height:0;padding:0" data-cw="'+k+'"'+(sel.includes(k)?' checked':'')+'> '+wl(k)+'</label>').join('')+'</div></div>';
+  if(!Ws.length)return h+'<div class="card mu">Sélectionnez au moins une semaine contenant des données.</div>';
+  return h+cmpBlock(Ws,'d',cm,PAL)+cmpBlock(Ws,'s',cm,PAL);
+}
+function cmpBlock(Ws,cl,cm,PAL){
+  const val=x=>x?(cm==='pct'?x.pct:cm==='ha'?x.ha:(x.n?x.rt/x.n*100:0)):null;
+  const src=W=>cl==='d'?W.D:W.sp,idf=x=>cl==='d'?x.d:x.d+'|'+x.s,order=Object.keys(DEPTS);
+  const nA=x=>cl==='d'?x.na:x.ag.length,gp=x=>cl==='d'?x.g:x.ag.filter(a=>a.c==='g').length,N=v=>'<td class="num">'+v+'</td>';
+  const cats=[],seen=new Set();
+  Ws.forEach(W=>src(W).forEach(x=>{const k=idf(x);if(!seen.has(k)){seen.add(k);cats.push({k,l:cl==='d'?DEPTS[x.d]:x.s,d:x.d})}}));
+  cats.sort((a,b)=>order.indexOf(a.d)-order.indexOf(b.d)||a.l.localeCompare(b.l));
+  const title=cl==='d'?'Par département':'Par équipe de superviseur';
+  if(!cats.length)return '<div class="card mu">'+title+' : aucune donnée.</div>';
+  const V=cats.map(c=>Ws.map(W=>val(src(W).find(x=>idf(x)===c.k))));
+  const ML={pct:'% de l\'objectif de superficie',ha:'Superficie (ha)',rdc:'% de RDC terminés'},f=v=>v==null?'—':cm==='ha'?v.toFixed(1):v.toFixed(0)+'%';
+  let mx=Math.max(1,...V.flat().filter(v=>v!=null));if(cm==='pct')mx=Math.max(mx,100);mx*=1.1;
+  const gw=Ws.length*20+16,L=60,T=16,B=96,H=340,ph=H-T-B,Wd=L+cats.length*gw+10,dense=Ws.length*cats.length<=24;
+  let sv='<svg viewBox="0 0 '+Wd+' '+H+'" width="'+Wd+'" height="'+H+'" style="max-width:none;color:var(--tx);font-size:10px" role="img" aria-label="'+title+'">';
+  for(let i=0;i<=5;i++){const y=T+ph-ph*i/5;sv+='<line x1="'+L+'" x2="'+Wd+'" y1="'+y+'" y2="'+y+'" stroke="currentColor" stroke-opacity=".15"/><text x="'+(L-6)+'" y="'+(y+3)+'" text-anchor="end" fill="currentColor" fill-opacity=".7">'+(mx*i/5).toFixed(0)+'</text>'}
+  if(cm==='pct'){const y=T+ph-ph*100/mx;sv+='<line x1="'+L+'" x2="'+Wd+'" y1="'+y+'" y2="'+y+'" stroke="#dc2626" stroke-dasharray="5 4"/><text x="'+(Wd-4)+'" y="'+(y-4)+'" text-anchor="end" fill="#dc2626">Objectif 100 %</text>'}
+  cats.forEach((c,ci)=>{const x0=L+ci*gw+8;
+    Ws.forEach((W,wi)=>{const v=V[ci][wi];if(v==null)return;const bh=Math.max(1,ph*v/mx),x=x0+wi*20,y=T+ph-bh;
+      sv+='<rect x="'+x+'" y="'+y+'" width="16" height="'+bh+'" rx="2" fill="'+PAL[wi%PAL.length]+'"><title>'+esc(c.l)+' — '+wl(W.week)+' : '+f(v)+(cm==='ha'?' ha':'')+'</title></rect>';
+      if(dense)sv+='<text x="'+(x+8)+'" y="'+(y-3)+'" text-anchor="middle" font-size="9" fill="currentColor">'+f(v)+'</text>'});
+    sv+='<text transform="translate('+(x0+Ws.length*10)+','+(T+ph+14)+') rotate(-30)" text-anchor="end" fill="currentColor">'+esc(c.l.length>22?c.l.slice(0,21)+'…':c.l)+'</text>'});
+  sv+='</svg>';
+  let h='<div class="wk">'+title+'<span>'+ML[cm]+'</span></div><div class="card"><div class="ph" style="margin-bottom:6px">'+Ws.map((W,i)=>'<span class="chip" style="background:'+PAL[i%PAL.length]+';color:#fff">'+wl(W.week)+'</span>').join('')+'</div><div class="tw">'+sv+'</div></div>';
+  const chip=(d,dg,neu)=>'<span class="chip '+(neu?'n':d>=0?'g':'r')+'">'+(d>=0?'+':'')+d.toFixed(dg)+'</span>';
+  const IND=[
+    ['Superficie (ha) / objectif',x=>x.ha.toFixed(1)+' / '+x.ob,x=>x.ha,1,0],
+    ['Taux de superficie',x=>x.pct.toFixed(0)+'%',x=>x.pct,0,0,1],
+    ['Demandes',x=>x.n,x=>x.n,0,1],
+    ['PVCL terminés / en cours / à créer',x=>x.pt+' / '+x.pe+' / '+x.pc,x=>x.pt,0,0],
+    ['RDC terminés / en cours / à créer',x=>x.rt+' / '+x.re+' / '+x.rc,x=>x.rt,0,0],
+    ['Agents superficie atteinte',x=>x.so+'/'+nA(x),x=>x.so,0,0],
+    ['Agents RDC soldés',x=>x.ro+'/'+nA(x),x=>x.ro,0,0],
+    ['Agents PVCL soldés',x=>x.po+'/'+nA(x),x=>x.po,0,0],
+    ['Agents en PRIME',x=>gp(x)+(cl==='s'&&x.c==='g'?' · 🏅 sup.':''),x=>gp(x),0,0,1]
+  ];
+  const cards=cats.map(c=>{
+    const E=Ws.map(W=>src(W).find(x=>idf(x)===c.k)),v=E.filter(Boolean);
+    let r='<div class="card tw cc"><b>'+esc(c.l)+'</b>'+(cl==='s'?' <span class="mu">· '+DEPTS[c.d]+'</span>':'')+'<table style="margin-top:6px"><thead><tr><th></th>'+Ws.map(W=>'<th class="num">'+wl(W.week)+'</th>').join('')+(Ws.length>1?'<th class="num" title="Écart première → dernière semaine (terminés pour PVCL / RDC)">Évol.</th>':'')+'</tr></thead><tbody>';
+    IND.forEach(([lb,fv,fn,dg,neu,colr])=>{
+      r+='<tr><td>'+lb+'</td>'+E.map(x=>'<td class="num'+(x&&colr&&cl==='s'&&x.c?' '+x.c:'')+'">'+(x?fv(x):'—')+'</td>').join('');
+      if(Ws.length>1)r+='<td class="num">'+(v.length>1?chip(fn(v[v.length-1])-fn(v[0]),dg,neu):'—')+'</td>';
+      r+='</tr>'});
+    return r+'</tbody></table></div>'}).join('');
+  h+='<div class="cg">'+cards+'</div>';
+  return h;
+}
+function modeBar(){return '<div class="ph" style="margin-bottom:10px"><button data-mode="team" class="'+(S.mode==='xl'?'':'p')+'">Saisie par équipe</button><button data-mode="xl" class="'+(S.mode==='xl'?'p':'')+'">Import fichier Excel</button></div>'}
+const nk=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function xdate(v){
+  if(typeof v==='number'&&v>20000)return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
+  const s=String(v==null?'':v).trim();
+  let m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:'';
+}
+function xlParse(buf,name,d){
+  const wb=XLSX.read(buf,{type:'array'}),ex=new Map(all().map(r=>[r.n,r])),M=new Map(),P={name,d,bad:0,other:0,nw:0,up:0,same:0,weeks:{},todo:[]};let ok=0;
+  const dk={};Object.entries(DEPTS).forEach(([k,t])=>{dk[nk(k)]=k;dk[nk(t)]=k});
+  wb.SheetNames.forEach(sn=>{
+    const js=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''});if(!js.length)return;
+    const hm={};Object.keys(js[0]).forEach(k=>{hm[nk(k)]=k});
+    const key=(...ks)=>ks.find(k=>hm[k]!=null);
+    const kn=key('ndemande','numerodemande','demande'),kh=key('superficie','surfaceha','surface'),ka=key('nomagent','ce','agent','codeagent'),ks=key('superviseur');
+    if(!kn||!kh||!ka)return;ok++;
+    const kd=key('datecreationdemande','datecreation','date'),kw=key('semaine'),kp=key('departement');
+    js.forEach(r=>{
+      const g=k=>hm[k]==null?'':String(r[hm[k]]==null?'':r[hm[k]]).trim();
+      const sx=pre=>{if(g(pre+'termine')&&g(pre+'termine')!=='0')return 't';if(g(pre+'encours')&&g(pre+'encours')!=='0')return 'e';if(g(pre+'acreer')&&g(pre+'acreer')!=='0')return 'c';const u=nk(g('statut'+pre)||g(pre));return u.includes('termin')?'t':u.includes('cours')?'e':'c'};
+      if(kp&&g(kp)&&dk[nk(g(kp))]!==d){P.other++;return}
+      let n=g(kn),ha=parseFloat(g(kh).replace(',','.')),dt=xdate(kd?r[hm[kd]]:''),a=g(ka).replace(/_/g,' ').replace(/\s+/g,' ').trim().toUpperCase(),s=g(ks).replace(/\s+/g,' ').toUpperCase();
+      if(!n||!a||!(ha>=0)||!dt){P.bad++;return}
+      const match=REFERENCE.filter(v=>v.departement===d&&[nk(v.nom_agent),nk(v.code_agent)].includes(nk(a)));if(match.length!==1){P.bad++;return}a=match[0].nom_agent;s=match[0].superviseur;const sem=kw?g(kw):'',w=WK.some(v=>v.k===sem)?sem:weekOf(dt);
+      M.set(n,{n,dt,w,d,s,a,ha:Math.round(ha*1e4)/1e4,p:sx('pvcl'),r:sx('rdc')});
+    });
+  });
+  if(!ok)return{err:'Aucune feuille avec les colonnes N°DEMANDE, superficie et nom_agent ou code_agent.'};
+  M.forEach(r=>{
+    const e=ex.get(r.n);
+    if(e&&e.d===r.d&&e.s===r.s&&e.a===r.a&&e.w===r.w&&e.dt===r.dt&&Math.abs(e.ha-r.ha)<1e-6&&e.p===r.p&&e.r===r.r){P.same++;return}
+    e?P.up++:P.nw++;P.todo.push(r);P.weeks[r.w]=(P.weeks[r.w]||0)+1;
+  });
+  P.lastW=Object.keys(P.weeks).sort((a,b)=>WK.findIndex(v=>v.k===a)-WK.findIndex(v=>v.k===b)).pop();
+  return P;
+}
+async function bulk(rows,prog){
+  if(!DB){rows.forEach(r=>{over[r.n]=r});try{localStorage.setItem('rv_over',JSON.stringify(over))}catch(e){}return rows.length}
+  let ok=0,i=0;
+  const wk=async()=>{while(i<rows.length){const r=rows[i++];
+    for(let t=0;;t++){try{await DB.doc('rendements/'+rid(r.n)).set(r);ok++;break}
+      catch(e){const c=e&&e.code;if((c==='resource_exhausted'||c==='unavailable')&&t<6){await new Promise(z=>setTimeout(z,500*(t+1)))}else throw e}}
+    prog&&prog(ok,rows.length)}};
+  await Promise.all([wk(),wk(),wk()]);return ok;
+}
+function xlForm(){
+  const P=S.xp,xd=S.xd||'';
+  let h=modeBar()+'<div class="card"><b>Importer un fichier Excel par département</b><div class="form" style="margin-top:8px"><label>1 · Département<select id="x_d"><option value="">— choisir —</option>'+Object.entries(DEPTS).map(([k,t])=>'<option value="'+k+'"'+(xd===k?' selected':'')+'>'+t+'</option>').join('')+'</select></label><label>2 · Fichier (.xlsx, .xls, .csv)<input type="file" id="x_f" accept=".xlsx,.xls,.csv"'+(xd?'':' disabled')+'></label></div>'
+   +'<p class="mu" style="font-size:12px">Colonnes attendues (comme le fichier global) : N°DEMANDE, superficie, Date création demande, nom_agent (ou code agent), superviseur issu du référentiel. Facultatives : Semaine, DEPARTEMENT, Pvcl à créer / en cours / terminé, RDC à créer / en cours / terminé. Un N° de demande déjà présent est mis à jour, sinon la ligne est ajoutée.</p>';
+  if(P&&P.err)h+='<div class="chip r">'+esc(P.err)+'</div>';
+  else if(P){
+    h+='<div class="ph" style="margin:8px 0"><span class="chip n">'+esc(P.name)+'</span><span class="chip g">'+P.nw+' nouvelle(s)</span><span class="chip o">'+P.up+' mise(s) à jour</span><span class="chip n">'+P.same+' identique(s)</span>'+(P.bad?'<span class="chip r">'+P.bad+' invalide(s)</span>':'')+(P.other?'<span class="chip r">'+P.other+' d\'un autre département (ignorées)</span>':'')+'</div>'
+     +'<div class="mu" style="font-size:12px;margin-bottom:6px">Semaines concernées : '+(Object.entries(P.weeks).map(([k,v])=>wl(k)+' ('+v+')').join(' · ')||'aucune')+'</div>'
+     +'<div class="tw"><table><thead><tr><th>Date</th><th>N° demande</th><th>Agent</th><th>Superviseur</th><th class="num">ha</th><th>PVCL</th><th>RDC</th></tr></thead><tbody>'+P.todo.slice(0,8).map(r=>'<tr><td>'+fmt(r.dt)+'</td><td>'+esc(r.n)+'</td><td>'+esc(r.a)+'</td><td>'+esc(r.s)+'</td><td class="num">'+r.ha.toFixed(3)+'</td><td>'+ST[r.p]+'</td><td>'+ST[r.r]+'</td></tr>').join('')+'</tbody></table></div>'
+     +'<div class="ph" style="margin-top:10px"><button class="p" id="x_go"'+(P.todo.length?'':' disabled')+'>Importer '+P.todo.length+' ligne(s) dans la base</button><span id="x_pg" class="mu"></span></div>';
+  }
+  return h+'</div>';
+}
+function line(){const f=p=>Object.entries(ST).map(([k,t])=>'<option value="'+k+'">'+p+' · '+t+'</option>').join('');return '<div class="form ln" style="margin-top:6px"><input class="ln_n" placeholder="N° demande"><input class="ln_h" type="number" step="0.0001" min="0" placeholder="Superficie (ha)"><select class="ln_p" title="PVCL">'+f('PVCL')+'</select><select class="ln_r" title="RDC">'+f('RDC')+'</select><button class="s" data-rm="1">✕</button></div>'}
+function agCard(a){return '<div class="card ag" data-a="'+esc(a)+'" style="margin:8px 0"><div class="ph" style="justify-content:space-between"><b>'+esc(a)+'</b><button class="s" data-add="1">+ demande</button></div><div class="ls">'+line()+'</div></div>'}
+function teamForm(){
+  const R=all(),td=S.td||'',teams=[...new Set([...R.filter(r=>r.d===td).map(r=>r.s),...REFERENCE.filter(r=>r.departement===td).map(r=>r.superviseur)])].sort(),dt=S.tdt||TODAY,wk=S.tw||weekOf(dt),wo=WK.find(v=>v.k===wk)||{s:'',e:''};
+  const o=(arr,v)=>arr.map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===v?' selected':'')+'>'+esc(x[1])+'</option>').join('');
+  let h='<div class="card"><b>Ajouter des rendements par équipe</b><div class="form" style="margin-top:8px">'
+   +'<label>1 · Département<select id="t_d"><option value="">— choisir —</option>'+o(Object.entries(DEPTS),td)+'</select></label>'
+   +'<label>2 · Équipe (superviseur)<select id="t_s"'+(td?'':' disabled')+'><option value="">— choisir —</option>'+o(teams.map(t=>[t,t]),S.ts)+'</select></label>'
+   +'<label>Date de création<input type="date" id="t_dt" value="'+dt+'"></label>'
+   +'<label>Semaine<select id="t_w">'+WK.map(v=>'<option value="'+v.k+'"'+(wk===v.k?' selected':'')+'>'+wl(v.k)+'</option>').join('')+'</select></label></div>'
+   +'<div class="ph" style="margin-top:8px;align-items:end"><label class="mu" style="font-size:11px;display:flex;flex-direction:column;gap:2px">Début de la semaine<input type="date" id="t_ws" value="'+wo.s+'"></label><label class="mu" style="font-size:11px;display:flex;flex-direction:column;gap:2px">Fin de la semaine<input type="date" id="t_we" value="'+wo.e+'"></label><button id="t_wa" type="button">Modifier les dates de cette semaine</button></div>';
+  if(td&&S.ts){
+    const ags=[...new Set([...R.filter(r=>r.d===td&&r.s===S.ts).map(r=>r.a),...REFERENCE.filter(r=>r.departement===td&&r.superviseur===S.ts).map(r=>r.nom_agent),...((S.extra||{})[td+'|'+S.ts]||[])])].sort();
+    h+='<div style="margin-top:12px"><b>Équipe '+esc(S.ts)+'</b> <span class="mu">— '+ags.length+' agent(s) · une ligne par demande (N°, superficie, PVCL, RDC) · laisser vide si pas de rendement</span></div>'
+    +'<div id="t_ag">'+ags.map(agCard).join('')+'</div>'
+    +'<div class="ph"><input id="t_na" placeholder="Nouvel agent de léquipe"><button id="t_ba">Ajouter l agent</button></div>'
+    +'<div class="ph" style="margin-top:10px"><button class="p" id="t_sv">Enregistrer les rendements</button></div>';
+  }
+  return h+'</div>';
+}
+function depView(W){
+  const c=(a,b)=>a+'/'+b,N=v=>'<td class="num">'+v+'</td>';
+  const dr=W.D.map(t=>'<tr><td><b>'+DEPTS[t.d]+'</b></td>'+N(t.ns)+N(t.na)+N(t.ha.toFixed(2)+' / '+t.ob)+N(t.pct.toFixed(0)+'%')+N(t.n)+N(t.pt)+N(t.pe)+N(t.pc)+N(t.rt)+N(t.re)+N(t.rc)+N(c(t.so,t.na))+N(c(t.ro,t.na))+N(c(t.po,t.na))+N(t.g)+'</tr>').join('');
+  const tr=W.sp.map(p=>'<tr class="'+p.c+'"><td>'+esc(p.s)+'</td><td>'+DEPTS[p.d]+'</td>'+N(p.ag.length)+N(p.ha.toFixed(2)+' / '+p.ob)+N(p.pct.toFixed(0)+'%')+N(p.n)+N(p.pt)+N(p.pe)+N(p.pc)+N(p.rt)+N(p.re)+N(p.rc)+N(c(p.so,p.ag.length))+N(c(p.ro,p.ag.length))+N(c(p.po,p.ag.length))+'<td>'+p.ag.filter(x=>x.c==='g').length+' agent(s)'+(p.c==='g'?' · 🏅 sup.':'')+'</td></tr>').join('');
+  const h='<th class="num">Demandes</th><th class="num">PVCL terminés</th><th class="num">PVCL en cours</th><th class="num">PVCL à créer</th><th class="num">RDC terminés</th><th class="num">RDC en cours</th><th class="num">RDC à créer</th><th class="num">Agents superficie atteinte</th><th class="num">Agents RDC soldés</th><th class="num">Agents PVCL soldés</th>';
+  return '<div class="card tw"><b>Par département</b><table><thead><tr><th>Département</th><th class="num">Équipes</th><th class="num">Agents</th><th class="num">Superficie (ha) / objectif</th><th class="num">Taux</th>'+h+'<th class="num">Agents PRIME</th></tr></thead><tbody>'+dr+'</tbody></table></div>'
+  +'<div class="card tw"><b>Par équipe de superviseur</b><table><thead><tr><th>Superviseur</th><th>Département</th><th class="num">Agents</th><th class="num">Superficie (ha) / objectif</th><th class="num">Taux</th>'+h+'<th>Prime</th></tr></thead><tbody>'+tr+'</tbody></table></div>';
+}
+function prm(){return prmCfg()+prmWeeks()}
+function prmWeeks(){
+  const hasRows=k=>all().some(r=>r.w===k);
+  return '<div class="card tw"><b>Semaines</b><p class="mu" style="font-size:12px">Modifiez le début et la fin de chaque semaine. Les demandes déjà rattachées à une semaine y restent ; les dates servent à classer les nouvelles saisies et le délai S+1.</p><table><thead><tr><th>Semaine</th><th>Début</th><th>Fin</th><th class="num">Demandes</th><th></th></tr></thead><tbody>'
+   +WK.map((v,i)=>'<tr><td>'+esc(wl(v.k))+'</td><td><input type="date" data-ws="'+i+'" value="'+v.s+'"></td><td><input type="date" data-we="'+i+'" value="'+v.e+'"></td><td class="num">'+all().filter(r=>r.w===v.k).length+'</td><td>'+(((cfg.weeks||{})[v.k]||{}).c&&!hasRows(v.k)?'<button class="s" data-wd="'+i+'">Supprimer</button>':'')+'</td></tr>').join('')
+   +'</tbody></table><div class="ph" style="margin-top:10px"><button class="p" id="w_sv">Enregistrer les semaines</button></div>'
+   +'<div class="form" style="margin-top:12px"><label>Nouvelle semaine — début<input type="date" id="w_ns"></label><label>Fin<input type="date" id="w_ne"></label></div><div class="ph" style="margin-top:8px"><button id="w_add">Ajouter la semaine</button></div></div>';
+}
+function prmCfg(){
+  return '<div class="card"><b>Objectifs de superficie (ha / agent / semaine)</b><div class="form" style="margin-top:8px">'+Object.keys(DEPTS).map(d=>'<label>'+DEPTS[d]+'<input type="number" min="0" id="c_'+d+'" value="'+obj(d)+'"></label>').join('')+'<label>Seuil superviseur (% de ses agents ayant atteint l\'objectif)<input type="number" min="1" max="100" id="c_seuil" value="'+cfg.seuil+'"></label></div><div class="ph" style="margin-top:10px"><button class="p" id="sc">Enregistrer</button></div>'
+  +'<p class="mu">Règles : superficie atteinte → orange · RDC et PVCL de la semaine tous terminés (sinon délai jusqu\'à la fin de la semaine suivante) → jaune · les trois → vert + PRIME. Superviseur : même logique selon la part de ses agents qui atteignent chaque objectif. Meilleur agent / superviseur : parmi ceux qui atteignent les trois objectifs (superficie, PVCL, RDC), celui qui a la meilleure note, moyenne des taux superficie, PVCL terminés et RDC terminés. Sans éligible, un meilleur provisoire est indiqué sans prime.</p></div>';
+}
+function render(){
+  const ws=wlist(),sel=document.getElementById('fw');
+  if(!S.w&&!S.init){S.w=ws.length?ws[ws.length-1].k:'';S.init=1}
+  sel.innerHTML='<option value="">Toutes les semaines</option>'+ws.map(v=>'<option value="'+v.k+'"'+(S.w===v.k?' selected':'')+'>'+wl(v.k)+'</option>').join('');
+  document.getElementById('tabs').innerHTML=[['syn','Synthèse & primes'],['hier','Hiérarchie'],['dep','Départements & équipes'],['cmp','Comparaison'],['det','Saisie & détail'],['prm','Paramètres']].map(([k,t])=>'<button data-t="'+k+'" class="'+(S.tab===k?'on':'')+'">'+t+'</button>').join('');
+  const m=document.getElementById('m');let h='';
+  if(S.tab==='syn'||S.tab==='hier'||S.tab==='dep'){
+    h='<div class="leg"><span class="chip o">Superficie atteinte</span><span class="chip y">RDC + PVCL terminés</span><span class="chip g">Superficie + RDC + PVCL → PRIME</span><span class="chip n">En attente (délai S+1)</span></div>';
+    const list=(S.w?ws.filter(v=>v.k===S.w):[...ws].reverse());let any=0;
+    list.forEach(v=>{const W=calc(v.k);if(!W.rows.length)return;any=1;h+='<div class="wk">Semaine '+wl(v.k)+'<span>'+W.rows.length+' demandes · RDC et PVCL à solder avant le '+fmt(W.grace)+'</span></div>'+(S.tab==='syn'?syn(W):S.tab==='dep'?depView(W):agTable(W))});
+    if(!any)h+='<div class="card mu">Aucune donnée pour ce filtre.</div>';
+  }else h=S.tab==='det'?det():S.tab==='cmp'?cmpView():prm();
+  m.innerHTML=h;bind();
+}
+function toast(t){const e=document.getElementById('tt');e.innerHTML='<div class="toast">'+esc(t)+'</div>';setTimeout(()=>e.innerHTML='',3500)}
+const rid=n=>n.replace(/[^\w.~:@+-]/g,'_');
+async function saveRow(r){
+  if(DB){try{await DB.doc('rendements/'+rid(r.n)).set(r)}catch(e){toast('Écriture refusée : droits insuffisants sur cette page.');return false}}
+  else{over[r.n]=r;try{localStorage.setItem('rv_over',JSON.stringify(over))}catch(e){}render()}
+  return true;
+}
+async function delRow(n){
+  if(DB){try{await DB.doc('rendements/'+rid(n)).delete()}catch(e){toast('Suppression refusée.')}}
+  else{delete over[n];try{localStorage.setItem('rv_over',JSON.stringify(over))}catch(e){}render()}
+}
+function bind(){
+  const $=i=>document.getElementById(i);
+  document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;render()});
+  document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{S.edit=all().find(r=>r.n===b.dataset.ed);S.editing=1;render();window.scrollTo(0,0)});
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delRow(b.dataset.del));
+  if($('mo'))$('mo').onclick=()=>{S.lim+=200;render()};
+  if($('x_dt'))$('x_dt').onchange=()=>{$('x_w').value=weekOf($('x_dt').value||TODAY)};
+  if($('x_a'))$('x_a').onchange=()=>{const r=all().find(v=>v.a.toLowerCase()===$('x_a').value.trim().toLowerCase());if(r){$('x_s').value=r.s;$('x_d').value=r.d}};
+  document.querySelectorAll('[data-cw]').forEach(b=>b.onchange=()=>{S.cw=[...document.querySelectorAll('[data-cw]:checked')].map(x=>x.dataset.cw);render()});
+  if($('c_l'))$('c_l').onchange=()=>{S.cl=$('c_l').value;render()};
+  if($('c_m'))$('c_m').onchange=()=>{S.cm=$('c_m').value;render()};
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{S.mode=b.dataset.mode;render()});
+  if($('x_d'))$('x_d').onchange=()=>{S.xd=$('x_d').value;S.xp=null;render()};
+  if($('x_f'))$('x_f').onchange=async()=>{
+    const f=$('x_f').files[0];if(!f)return;
+    if(typeof XLSX==='undefined')return toast('Lecteur Excel indisponible (connexion).');
+    try{S.xp=xlParse(await f.arrayBuffer(),f.name,S.xd)}catch(e){S.xp={err:'Fichier illisible.'}}
+    render();
+  };
+  if($('x_go'))$('x_go').onclick=async()=>{
+    const P=S.xp;if(!P||!P.todo.length)return;S.bulk=1;const pg=$('x_pg');$('x_go').disabled=true;
+    try{const n=await bulk(P.todo,(a,b)=>{pg.textContent=a+' / '+b+' enregistrées…'});toast(n+' ligne(s) importée(s)');S.xp=null;S.w=P.lastW||S.w}
+    catch(e){toast(e&&e.code==='quota_exceeded'?'Quota de la base atteint.':'Import refusé : droits insuffisants ou erreur.')}
+    S.bulk=0;render();
+  };
+  const syncW=()=>{const v=WK.find(y=>y.k===$('t_w').value);if(v&&$('t_ws')){$('t_ws').value=v.s;$('t_we').value=v.e}};
+  if($('t_wa'))$('t_wa').onclick=async()=>{
+    const k=$('t_w').value,s=$('t_ws').value,e=$('t_we').value;
+    if(!s||!e||s>e)return toast('Dates invalides : le début doit précéder la fin.');
+    cfg.weeks=Object.assign({},cfg.weeks);cfg.weeks[k]=Object.assign({},cfg.weeks[k],{s,e});applyWeeks();
+    if(await saveCfg()){[...$('t_w').options].forEach(o=>{o.textContent=wl(o.value)});toast('Dates de la semaine modifiées')}
+  };
+  if($('w_sv'))$('w_sv').onclick=async()=>{
+    const W=Object.assign({},cfg.weeks||{});let bad=0;
+    WK.forEach((v,i)=>{const s=document.querySelector('[data-ws="'+i+'"]').value,e=document.querySelector('[data-we="'+i+'"]').value;if(!s||!e||s>e){bad++;return}W[v.k]=Object.assign({},W[v.k],{s,e})});
+    if(bad)return toast('Dates invalides : le début doit précéder la fin.');
+    cfg.weeks=W;applyWeeks();if(await saveCfg())toast('Semaines enregistrées');render();
+  };
+  if($('w_add'))$('w_add').onclick=async()=>{
+    const s=$('w_ns').value,e=$('w_ne').value,k=s+'_'+e;
+    if(!s||!e||s>e)return toast('Renseignez un début et une fin valides.');
+    if(WK.some(v=>v.k===k))return toast('Cette semaine existe déjà.');
+    cfg.weeks=Object.assign({},cfg.weeks,{[k]:{s,e,c:1}});applyWeeks();if(await saveCfg())toast('Semaine ajoutée');render();
+  };
+  document.querySelectorAll('[data-wd]').forEach(b=>b.onclick=async()=>{
+    const i=+b.dataset.wd,v=WK[i],W=Object.assign({},cfg.weeks||{});delete W[v.k];cfg.weeks=W;WK.splice(i,1);
+    if(await saveCfg())toast('Semaine supprimée');render();
+  });
+  if($('t_d'))$('t_d').onchange=()=>{S.td=$('t_d').value;S.ts='';render()};
+  if($('t_s'))$('t_s').onchange=()=>{S.ts=$('t_s').value;render()};
+  if($('t_w'))$('t_w').onchange=()=>{S.tw=$('t_w').value;syncW()};
+  if($('t_dt'))$('t_dt').onchange=()=>{S.tdt=$('t_dt').value;S.tw=weekOf(S.tdt||TODAY);if([...$('t_w').options].some(o=>o.value===S.tw)){$('t_w').value=S.tw;syncW()}else render()};
+  $('m').onclick=e=>{const a=e.target.closest('[data-add]'),x=e.target.closest('[data-rm]');if(a)a.closest('.ag').querySelector('.ls').insertAdjacentHTML('beforeend',line());if(x){const l=x.closest('.ln'),ls=l.parentNode;if(ls.children.length>1)l.remove();else l.querySelectorAll('input').forEach(i=>i.value='')}};
+  if($('t_ba'))$('t_ba').onclick=()=>{const v=$('t_na').value.trim().toUpperCase();if(!v)return;const k=S.td+'|'+S.ts;S.extra=S.extra||{};const L=S.extra[k]=S.extra[k]||[];if(L.includes(v)||[...document.querySelectorAll('.ag')].some(c=>c.dataset.a===v))return toast('Agent déjà dans léquipe.');L.push(v);$('t_ag').insertAdjacentHTML('beforeend',agCard(v));$('t_na').value=''};
+  if($('t_sv'))$('t_sv').onclick=async()=>{
+    const dt=$('t_dt').value,w=$('t_w').value,out=[];let bad=0;
+    if(!dt)return toast('Renseignez la date.');
+    document.querySelectorAll('.ag').forEach(c=>c.querySelectorAll('.ln').forEach(l=>{const n=l.querySelector('.ln_n').value.trim(),hv=l.querySelector('.ln_h').value;if(!n&&hv==='')return;const ha=parseFloat(hv);if(!n||!(ha>=0)){bad++;return}out.push({n,dt,w,d:S.td,s:S.ts,a:c.dataset.a,ha,p:l.querySelector('.ln_p').value,r:l.querySelector('.ln_r').value})}));
+    if(bad)return toast(bad+' ligne(s) incomplète(s) : N° demande et superficie obligatoires.');
+    if(!out.length)return toast('Aucune ligne à enregistrer.');
+    for(const r of out){if(!await saveRow(r))return}
+    toast(out.length+' demande(s) enregistrée(s)');S.w=w;render();
+  };
+  if($('cx'))$('cx').onclick=()=>{S.edit=null;S.editing=0;render()};
+  if($('sv'))$('sv').onclick=async()=>{
+    const r={n:$('x_n').value.trim(),dt:$('x_dt').value,w:$('x_w').value,d:$('x_d').value,s:$('x_s').value.trim().toUpperCase(),a:$('x_a').value.trim().toUpperCase(),ha:parseFloat($('x_ha').value),p:$('x_p').value,r:$('x_r').value};
+    if(!r.n||!r.dt||!r.s||!r.a||!(r.ha>=0))return toast('Renseignez N° demande, date, superviseur, agent et superficie.');
+    const ex=all().find(v=>v.n===r.n);if(ex){if(!over[r.n]&&BASE.some(b=>b.n===r.n)){/* modification d'une ligne du fichier */}}
+    if(await saveRow(r)){toast('Enregistré');S.edit=null;S.editing=0;S.w=r.w;render()}
+  };
+  if($('sc'))$('sc').onclick=async()=>{
+    const c={obj:{},weeks:cfg.weeks||{},seuil:Math.min(100,Math.max(1,+$('c_seuil').value||100))};Object.keys(DEPTS).forEach(d=>c.obj[d]=+$('c_'+d).value||obj(d));
+    cfg=c;if(DB){try{await DB.doc('config/params').set(c)}catch(e){toast('Écriture refusée : droits insuffisants.');return}}else{try{localStorage.setItem('rv_cfg',JSON.stringify(c))}catch(e){}}
+    toast('Paramètres enregistrés');render();
+  };
+}
+async function init(){
+  ensure(TODAY,0);
+  const params=new URLSearchParams(location.search),api='/terrain/rendements/api/?'+params.toString();
+  const csrf=()=>decodeURIComponent((document.cookie.split('; ').find(x=>x.startsWith('csrftoken='))||'').split('=').slice(1).join('='));
+  let issueRows=[];
+  async function refresh(){
+    const response=await fetch(api,{credentials:'same-origin'});
+    if(!response.ok)throw Error('Chargement refusé');
+    const value=await response.json();
+    over=Object.fromEntries(value.rows.map(r=>[r.n,r]));REFERENCE=value.agents;cfg=value.config;applyWeeks();issueRows=value.issues;
+    render();document.getElementById('issues').textContent=issueRows.length?issueRows.length+' demandes non comptabilisées : '+issueRows.join(' | '):'Résultats synchronisés avec la base applicative';
+  }
+  async function write(method,data){
+    const response=await fetch(api,{method,credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(data)});
+    const result=await response.json();if(!response.ok){toast(result.error||'Enregistrement refusé');throw Error(result.error||'Échec');}
+    await refresh();
+  }
+  DB={doc(path){return {async set(value){await write('POST',path==='config/params'?{config:value}:{row:value})},async delete(){const r=Object.values(over).find(x=>rid(x.n)===path.split('/').pop());if(r)await write('DELETE',{n:r.n})}}}};
+  // Server persistence is mandatory; never fall back to browser-local records.
+  bulk=async function(rows,prog){await write('POST',{rows});prog&&prog(rows.length,rows.length);return rows.length};
+  document.getElementById('fw').onchange=e=>{S.w=e.target.value;S.init=1;render()};
+  document.getElementById('ff').onchange=e=>{S.from=e.target.value;render()};
+  document.getElementById('ft').onchange=e=>{S.to=e.target.value;render()};
+  document.getElementById('fq').oninput=e=>{S.q=e.target.value;clearTimeout(S.tm);S.tm=setTimeout(render,250)};
+  document.getElementById('fr').onclick=()=>{S.from=S.to=S.q='';S.w='';S.init=0;['ff','ft','fq'].forEach(i=>document.getElementById(i).value='');render()};
+  try{await refresh()}catch(e){document.getElementById('m').textContent='Impossible de charger les rendements. Vérifiez votre session et la connexion au serveur.'}
+}
+if(typeof document!=='undefined')init();
+</script></body></html>
