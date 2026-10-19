@@ -259,6 +259,8 @@ def rendement_leves(request):
         'graph_jours': json.dumps([j['jour'].strftime('%d/%m') for j in jours]),
         'graph_parcelles': json.dumps([j['nb_parcelles'] for j in jours]),
         'graph_agents': json.dumps([j['nb_agents'] for j in jours]),
+        'graph_surfaces_jours': [j['surface_ha'] for j in jours],
+        'graph_surfaces_agents': [a['surface_ha'] for a in agents[:15]],
         'graph_noms': [a['nom'] for a in agents[:15]],
         'graph_prod': json.dumps([a['nb_parcelles'] for a in agents[:15]]),
     })
