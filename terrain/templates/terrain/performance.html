@@ -1,6 +1,1 @@
-{% extends 'base.html' %}
-{% block content %}
-<form method="get" class="d-flex gap-2 mb-3"><select name="session" aria-label="Analyse" class="form-select"><option value="">Dernière analyse terminée</option>{% for s in sessions %}<option value="{{ s.pk }}" {% if selection == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.nom }}</option>{% endfor %}</select><button class="btn btn-primary">Afficher</button></form>
-<a class="btn btn-outline-primary mb-3" href="{% url 'performance_api' %}?export=csv&amp;{{ request.GET.urlencode }}">Exporter les demandes et identités CSV</a><p>Département → équipe du superviseur → agents · système de primes hebdomadaires du modèle fourni · noms complets du référentiel · résultats qualité et superficies de l’analyse. Les saisies et imports manuels sont identifiés dans le détail. Les primes restent théoriques. La superficie est verrouillée sur le résultat PostgreSQL de l’analyse ; les valeurs saisies ou importées ne la remplacent pas.</p>
-<iframe title="Rendement hebdomadaire" src="{% url 'performance_model' %}?{{ request.GET.urlencode }}" style="width:100%;height:1050px;border:0"></iframe>
-{% endblock %}
+{% extends 'terrain/performance_native.html' %}

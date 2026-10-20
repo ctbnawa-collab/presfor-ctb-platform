@@ -107,7 +107,7 @@ uploadForm.addEventListener('submit',function(event){
   phase.textContent='Transfert des fichiers…';count.textContent='';
   const started=Date.now();let timer,polling=false,finished=false;
   const xhr=new XMLHttpRequest();
-  function stop(){finished=true;clearInterval(timer);button.disabled=false;}
+  function stop(){finished=true;clearInterval(timer);button.disabled=false;if(!bar.hasAttribute('value'))bar.value=0;}
   async function poll(){
     if(polling||finished)return;polling=true;
     try{
@@ -115,8 +115,8 @@ uploadForm.addEventListener('submit',function(event){
       if(!response.ok)return;
       const state=await response.json();
       if(finished)return;
-      if(state.phase){phase.textContent=state.phase;count.textContent=state.done+' / '+state.total+' CSV contrôlés · '+Math.floor((Date.now()-started)/1000)+' s';}
-      if(state.statut==='termine'&&state.url){stop();window.location.assign(state.url);}
+      if(state.phase){if(state.total)bar.value=state.done/state.total*100;phase.textContent=state.phase;count.textContent=state.done+' / '+state.total+' CSV contrôlés · '+Math.floor((Date.now()-started)/1000)+' s';}
+      if(state.statut==='termine'&&state.url){bar.value=100;stop();window.location.assign(state.url);}
       else if(state.statut==='erreur'){phase.textContent='Analyse interrompue. Le message détaillé va apparaître.';}
     }catch(error){if(!finished)count.textContent='Suivi temporairement indisponible. Le traitement peut continuer.';}
     finally{polling=false;}
@@ -130,7 +130,7 @@ uploadForm.addEventListener('submit',function(event){
     stop();
     if(xhr.status>=200&&xhr.status<400 && new URL(xhr.responseURL).pathname!==location.pathname){window.location.assign(xhr.responseURL);return;}
     const errors=xhr.response?[...xhr.response.querySelectorAll('.alert-danger,.text-danger,.errorlist')].map(e=>e.textContent.trim()).filter(Boolean):[];
-    phase.textContent=errors.join(' · ')||(xhr.status===429?'Une analyse est déjà en cours. Attendez sa fin avant de renvoyer un lot.':'Analyse non terminée. Vérifiez les champs et la connexion PostgreSQL. Code serveur : '+xhr.status);
+    phase.textContent=errors.join(' · ')||(xhr.status===429?'Une analyse est déjà en cours. Attendez sa fin avant de renvoyer un lot.':xhr.status===502?'Le serveur a interrompu le traitement (502). Consultez le tableau de bord avant de relancer le lot.':'Analyse non terminée. Vérifiez les champs et la connexion PostgreSQL. Code serveur : '+xhr.status);
   };
   xhr.onerror=xhr.ontimeout=()=>{stop();phase.textContent='Connexion interrompue. Vérifiez le tableau de bord avant de renvoyer les fichiers : le traitement peut encore être en cours.';};
   xhr.send(data);

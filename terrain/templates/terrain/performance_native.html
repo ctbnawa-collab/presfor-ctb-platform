@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block fil %}Département · équipe du superviseur · agents{% endblock %}
+{% block actions %}
+<a class="btn btn-sm btn-outline-primary" href="?{{ request.GET.urlencode }}&export=csv">Exporter les équipes</a>
+<a class="btn btn-sm btn-outline-secondary" href="?{{ request.GET.urlencode }}&export=agents">Exporter les agents</a>
+{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap gap-2 mb-3" aria-label="Périodicité">
+<a class="btn {% if mode == 'journalier' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'performance_daily' %}{% if session %}?session={{ session.pk }}{% endif %}">Journalier</a>
+<a class="btn {% if mode == 'hebdomadaire' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'performance' %}{% if session %}?session={{ session.pk }}{% endif %}">Hebdomadaire</a>
+<a class="btn {% if mode == 'mensuel' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'performance_monthly' %}{% if session %}?session={{ session.pk }}{% endif %}">Mensuel</a>
+</div>
+<form class="filtres row g-2 align-items-end" method="get">
+<div class="col-md-4"><label for="analyse-session" class="form-label">Analyse</label><select id="analyse-session" class="form-select" name="session"><option value="">Dernière analyse terminée</option>{% for s in sessions %}<option value="{{ s.pk }}" {% if session.pk == s.pk %}selected{% endif %}>{{ s.nom }}</option>{% endfor %}</select></div>
+<div class="col-md-3"><label for="periode" class="form-label">{% if mode == 'hebdomadaire' %}Semaine{% else %}Période{% endif %}</label>{% if mode == 'hebdomadaire' %}<select id="periode" name="periode" class="form-select">{% for w in options %}<option value="{{ w.k }}" {% if periode == w.k %}selected{% endif %}>{{ w.s }} → {{ w.e }}</option>{% empty %}<option value="{{ periode }}">{{ date_debut|date:'d/m/Y' }} → {{ date_fin|date:'d/m/Y' }}</option>{% endfor %}</select>{% else %}<input id="periode" name="periode" type="{% if mode == 'journalier' %}date{% else %}month{% endif %}" value="{{ periode }}" class="form-control">{% endif %}</div>
+<div class="col-md-2"><label for="dep" class="form-label">Département</label><select id="dep" name="departement" class="form-select"><option value="">Tous</option><option {% if departement == 'BUYO' %}selected{% endif %}>BUYO</option><option {% if departement == 'SOUBRE' %}selected{% endif %}>SOUBRE</option><option {% if departement == 'MEAGUI' %}selected{% endif %}>MEAGUI</option></select></div>
+<div class="col-md-2"><label for="superviseur" class="form-label">Superviseur</label><select id="superviseur" name="superviseur" class="form-select"><option value="">Toutes les équipes</option>{% for s in superviseurs %}<option {% if s == superviseur %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div><div class="col-md-1"><button class="btn btn-primary w-100">Filtrer</button></div>
+</form>
+<div class="row g-3 mb-3">
+<div class="col-6 col-lg-3"><div class="card card-metric vert"><div class="val">{{ total.ha|floatformat:2 }}</div><div class="lbl">hectares PostgreSQL</div></div></div>
+<div class="col-6 col-lg-3"><div class="card card-metric"><div class="val">{{ total.n }}</div><div class="lbl">demandes / parcelles rattachées</div></div></div>
+<div class="col-6 col-lg-3"><div class="card card-metric"><div class="val">{{ total.equipes }} / {{ total.agents }}</div><div class="lbl">équipes / agents actifs</div></div></div>
+<div class="col-6 col-lg-3"><div class="card card-metric bleu2"><div class="val">{{ total.pr }}</div><div class="lbl">PVCL et RDC terminés ensemble</div></div></div>
+</div>
+{% if equipes %}
+<div class="row g-3 mb-3"><div class="col-lg-6"><div class="card"><div class="card-header">Classement des équipes par superficie</div><div class="card-body" style="height:{{ graph_height }}px"><canvas id="graph-equipes" role="img" aria-label="Superficie et nombre de parcelles par équipe"></canvas></div></div></div><div class="col-lg-6"><div class="card"><div class="card-header">Production sur la période</div><div class="card-body" style="height:420px"><canvas id="graph-production" role="img" aria-label="Évolution des superficies et du nombre de parcelles"></canvas></div></div></div></div>
+{% endif %}
+<p class="small text-muted">Les primes sont hebdomadaires : leur statut utilise la semaine complète, même dans les vues journalière et mensuelle. Les objectifs et le délai S+1 du modèle sont conservés. Aucun montant ni paiement n’est créé. L’effectif de référence reste celui des agents ayant des demandes dans la semaine.</p>
+{% regroup equipes by d as departements_equipes %}
+{% for dep in departements_equipes %}
+<section class="card mb-3"><div class="card-header">{{ dep.grouper }} — équipes classées par superficie</div><div class="table-responsive"><table class="table tbl-sm mb-0"><thead><tr><th>Superviseur</th><th>Agents</th><th>Superficie (ha)</th><th>Demandes</th><th>PVCL terminés</th><th>RDC terminés</th><th>Les deux terminés</th><th>Ratio complet</th><th>Primes de l’équipe</th></tr></thead><tbody>
+{% for t in dep.list %}<tr><td><strong>{{ t.s }}</strong></td><td>{{ t.effectif }}</td><td class="text-success fw-bold">{{ t.ha|floatformat:2 }}</td><td>{{ t.n }}</td><td>{{ t.pt }}</td><td>{{ t.rt }}</td><td>{{ t.pr }}</td><td>{{ t.ratio }} %</td><td>{% for p in t.primes %}<div class="mb-2"><small>{{ p.debut }} → {{ p.fin }}</small><br><strong class="{% if p.eligible %}text-success{% else %}text-muted{% endif %}">{{ p.statut }}</strong><br><small>{{ p.agents_primes }} agent(s) éligible(s) · objectif {{ p.objectif|floatformat:0 }} ha · échéance {{ p.echeance|date:'d/m/Y' }}</small></div>{% endfor %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% for t in dep.list %}<details class="p-3 border-top"><summary>Agents de l’équipe {{ t.s }} · {{ t.effectif }} agent(s)</summary><div class="table-responsive mt-2"><table class="table tbl-sm"><thead><tr><th>nom_agent</th><th>Superficie (ha)</th><th>Demandes</th><th>PVCL terminés</th><th>RDC terminés</th><th>Les deux terminés</th></tr></thead><tbody>{% for a in t.detail_agents %}<tr><td>{{ a.a }}</td><td>{{ a.ha|floatformat:2 }}</td><td>{{ a.n }}</td><td>{{ a.pt }}</td><td>{{ a.rt }}</td><td>{{ a.pr }}</td></tr>{% endfor %}</tbody></table></div></details>{% endfor %}</section>
+{% empty %}<div class="card p-4 mb-3">Aucune demande exploitable pour ce filtre. Sélectionnez une analyse terminée et une période comportant des demandes.</div>{% endfor %}
+{% if nb_issues %}<details class="alert alert-warning"><summary>{{ nb_issues }} demande(s) non comptabilisée(s)</summary>{% for issue in issues %}<p class="mb-1 small">{{ issue }}</p>{% endfor %}{% if nb_issues > 30 %}<p class="small">30 premiers motifs affichés.</p>{% endif %}</details>{% endif %}
+<details class="card p-3 mt-3"><summary>Objectifs et règles de prime</summary><p class="small mt-2">Objectif en hectares par agent et par semaine. Le seuil du superviseur correspond à la part de ses agents atteignant chaque critère : superficie, PVCL soldés et RDC soldés.</p><form id="config-rendement" class="row g-2">{% csrf_token %}
+<div class="col-md-3"><label class="form-label" for="objectif-buyo">Buyo (ha)</label><input id="objectif-buyo" name="BUYO" type="number" step="0.01" min="0.01" class="form-control" value="{{ cfg.obj.BUYO|unlocalize }}" required></div>
+<div class="col-md-3"><label class="form-label" for="objectif-soubre">Soubré (ha)</label><input id="objectif-soubre" name="SOUBRE" type="number" step="0.01" min="0.01" class="form-control" value="{{ cfg.obj.SOUBRE|unlocalize }}" required></div>
+<div class="col-md-3"><label class="form-label" for="objectif-meagui">Méagui (ha)</label><input id="objectif-meagui" name="MEAGUI" type="number" step="0.01" min="0.01" class="form-control" value="{{ cfg.obj.MEAGUI|unlocalize }}" required></div>
+<div class="col-md-3"><label class="form-label" for="seuil">Seuil superviseur (%)</label><input id="seuil" name="seuil" type="number" step="0.01" min="0.01" max="100" class="form-control" value="{{ cfg.seuil|unlocalize }}" required></div><div><button class="btn btn-primary mt-2">Enregistrer les objectifs</button><p id="config-message" class="mt-2" role="status"></p></div></form></details>
+{{ graph|json_script:'performance-graph' }}{{ cfg|json_script:'performance-config' }}
+{% endblock %}
+{% block extra_js %}<script>
+const graph=JSON.parse(document.getElementById('performance-graph').textContent);
+const hectares=v=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(v)+' ha';
+if(document.getElementById('graph-equipes')){
+ new Chart(document.getElementById('graph-equipes'),{type:'bar',data:{labels:graph.noms,datasets:[{label:'Superficie (ha)',data:graph.ha,backgroundColor:'#70AD47',xAxisID:'ha'},{label:'Parcelles',data:graph.n,backgroundColor:'#2E75B6',xAxisID:'n'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.dataset.xAxisID==='ha'?hectares(c.parsed.x):c.parsed.x)}}},scales:{ha:{axis:'x',beginAtZero:true,title:{display:true,text:'Superficie (ha)'}},n:{axis:'x',beginAtZero:true,position:'top',ticks:{precision:0},title:{display:true,text:'Parcelles'},grid:{drawOnChartArea:false}},y:{ticks:{callback:function(v){return String(this.getLabelForValue(v)).match(/.{1,20}(?:\s|$)|.{1,20}/g);}}}}}});
+ new Chart(document.getElementById('graph-production'),{type:'line',data:{labels:graph.jours,datasets:[{label:'Superficie (ha)',data:graph.jour_ha,borderColor:'#70AD47',yAxisID:'ha'},{label:'Parcelles',data:graph.jour_n,borderColor:'#2E75B6',yAxisID:'n'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{ha:{axis:'y',beginAtZero:true,title:{display:true,text:'Superficie (ha)'}},n:{axis:'y',beginAtZero:true,position:'right',ticks:{precision:0},title:{display:true,text:'Parcelles'},grid:{drawOnChartArea:false}}}}});
+}
+document.getElementById('dep').addEventListener('change',()=>{document.getElementById('superviseur').value='';});
+document.getElementById('config-rendement').addEventListener('submit',async event=>{
+ event.preventDefault();const form=event.currentTarget,button=form.querySelector('button'),message=document.getElementById('config-message');button.disabled=true;
+ const cfg=JSON.parse(document.getElementById('performance-config').textContent);cfg.obj={};['BUYO','SOUBRE','MEAGUI'].forEach(dep=>cfg.obj[dep]=Number(form.elements[dep].value));cfg.seuil=Number(form.elements.seuil.value);
+ try{const response=await fetch('{% url "performance_api" %}',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRFToken':form.elements.csrfmiddlewaretoken.value},body:JSON.stringify({config:cfg}),signal:AbortSignal.timeout(20000)});const value=await response.json();if(!response.ok)throw Error(value.error||'Enregistrement refusé');window.location.reload();}catch(error){message.textContent=error.message;button.disabled=false;}
+});
+</script>{% endblock %}

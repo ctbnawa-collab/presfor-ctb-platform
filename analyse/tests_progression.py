@@ -52,9 +52,10 @@ class ProgressionTests(TestCase):
         files=[(str(i)+'.csv',io.BytesIO(b'CSV TEST')) for i in range(41)]
         events=[]
         def progress(done,total,phase):
+            if phase!='Contrôle qualité des CSV':return
             events.append(done)
             for _,handle in files[done:]:self.assertEqual(handle.tell(),0)
-        with patch('analyse.processing.process_csv',return_value=(pd.DataFrame(),None,None,{})),patch('analyse.processing.analyser_v8',return_value=({},'')):
+        with patch('analyse.processing.process_csv',return_value=(pd.DataFrame(),None,None,{})),patch('analyse.processing.analyser_v8',return_value=({},'')),patch('analyse.processing.load_parcelles_from_postgis',return_value={}):
             with self.assertRaises(ValueError):
                 run_analyse(files,source_parcelles='postgis',progression=progress)
         self.assertEqual(events,list(range(41)))

@@ -3,6 +3,7 @@ Moteur d'analyse adapté de Controle_demande_creee.py
 Traitement CSV + Parcelle Excel → statistiques par département
 """
 import io, re
+from .csv_leger import compacter_export
 import pandas as pd
 from datetime import datetime
 
@@ -727,6 +728,10 @@ def run_analyse(csv_files, parcelle_file=None, date_debut=None, date_fin=None,
     from django.conf import settings
     if settings.PRESFOR_POSTGRES_SURFACES_ONLY and source_parcelles != 'postgis':
         raise ValueError('La superficie des parcelles doit provenir exclusivement de PostgreSQL. Sélectionnez la base terrain.')
+    parcelles_postgis = None
+    if source_parcelles == 'postgis':
+        if progression: progression(0, len(csv_files), 'Lecture des superficies PostgreSQL')
+        parcelles_postgis = load_parcelles_from_postgis(date_debut, date_fin)
     all_demandes = []
     global_sp_to_dept = {}   # sous_pref label → département (agrégé de tous les CSV)
     avertissements_qualite = []
@@ -734,8 +739,7 @@ def run_analyse(csv_files, parcelle_file=None, date_debut=None, date_fin=None,
 
     for index_csv, (nom, content_bytes) in enumerate(csv_files):
         if progression: progression(index_csv, len(csv_files), "Contrôle qualité des CSV")
-        if hasattr(content_bytes, "read"):
-            content_bytes = content_bytes.read()
+        content_bytes = compacter_export(content_bytes)
         try:
             for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252'):
                 try:
@@ -780,7 +784,7 @@ def run_analyse(csv_files, parcelle_file=None, date_debut=None, date_fin=None,
     parcelle_map = {}
     index_parcelles = None
     if source_parcelles == 'postgis':
-        parcelle_map = load_parcelles_from_postgis(date_debut, date_fin)
+        parcelle_map = parcelles_postgis
     elif parcelle_file:
         parcelle_map = load_parcelles_from_file(parcelle_file)
 

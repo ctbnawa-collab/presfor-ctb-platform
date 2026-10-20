@@ -12,7 +12,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .models import AgentRendement,LigneRendement,ParametresRendement
-from .identites import resolve_agent,normaliser
+from .identites import resolve_agent,normaliser,charger_referentiel
 from .equipes import primes_equipes, regrouper_equipes
 from .exclusions import est_exclu,index_exclusions
 from analyse.models import AnalyseSession,Demande,en_date
@@ -34,61 +34,79 @@ def calendar(cfg,until=None):
         out.append(dict(k=key,s=start.isoformat(),e=end.isoformat()))
     return out
 
-def validate(row,demande=None):
+def contexte_rendement():
+    cfg=config()
+    return dict(cfg=cfg,referentiel=charger_referentiel(),weeks=calendar(cfg),resolutions={})
+
+def validate(row,demande=None,contexte=None):
     if not isinstance(row,dict):raise ValueError('Ligne invalide')
     n=str(row.get('n','')).strip()
     if not n or len(n)>60:raise ValueError('Numéro de demande requis, 60 caractères maximum')
     dt=date.fromisoformat(str(row.get('dt',''))).isoformat()
     if not '1900-01-01'<=dt<='2100-12-31':raise ValueError('Date hors période 1900 à 2100')
     dep=normaliser(row.get('d'))
+    contexte=contexte if contexte is not None else contexte_rendement()
     if settings.PRESFOR_POSTGRES_SURFACES_ONLY:
-        demande=demande or Demande.objects.filter(num_demande=n,session__statut='termine').order_by('-session__date_creation','-pk').first()
+        if demande is None:
+            demande=(contexte['demandes'].get(n) if 'demandes' in contexte else Demande.objects.filter(num_demande=n,session__statut='termine').order_by('-session__date_creation','-pk').first())
         if not demande or demande.surface_postgres is None:
             raise ValueError(f'{n} : superficie PostgreSQL absente. Relancer une analyse sur la base terrain.')
         if dep != normaliser(demande.departement):raise ValueError('Département différent du dossier analysé')
-    agent=resolve_agent(dep,row.get('nom_agent') or row.get('a') or row.get('code_agent'))
+    identite=row.get('nom_agent') or row.get('a') or row.get('code_agent')
+    key=(dep,str(identite or ''))
+    if key not in contexte['resolutions']:
+        contexte['resolutions'][key]=resolve_agent(dep,identite,referentiel=contexte['referentiel'])
+    agent=contexte['resolutions'][key]
     if not agent:raise ValueError(f'{n} : agent inconnu ou ambigu dans {dep}')
     ha=float(demande.surface_postgres) if settings.PRESFOR_POSTGRES_SURFACES_ONLY else float(str(row.get('ha','')).replace(',','.'))
     if not math.isfinite(ha) or ha<0:raise ValueError('Superficie invalide')
     if row.get('p') not in ('c','e','t') or row.get('r') not in ('c','e','t'):raise ValueError('Statut PVCL/RDC invalide')
-    cfg=config();weeks=calendar(cfg,date.fromisoformat(dt))
+    weeks=contexte['weeks']
+    if dt>weeks[-1]['e']:
+        weeks=calendar(contexte['cfg'],date.fromisoformat(dt));contexte['weeks']=weeks
     key=str(row.get('w',''))
     week=next((w for w in weeks if w['k']==key),None) if key else next((w for w in weeks if w['s']<=dt<=w['e']),None)
     if not week:raise ValueError('Semaine inconnue ou date antérieure au calendrier')
     # Supplied model permits an explicit reporting week independent of creation date.
     return dict(n=n,dt=dt,w=week['k'],d=dep,a=agent['nom_agent'],s=agent['superviseur'],nom_agent=agent['nom_agent'],code_agent=agent['code_agent'],controleur=agent['controleur'],ha=ha,p=row['p'],r=row['r'])
 
-def rows_for(session_id=None):
+def rows_for(session_id=None,contexte=None):
+    contexte=contexte if contexte is not None else contexte_rendement()
     sessions=AnalyseSession.objects.filter(statut='termine')
     session=sessions.filter(pk=session_id).first() if str(session_id or '').isdigit() else sessions.first()
     result={};issues=[];seen=set();excluded=index_exclusions()
     if session:
-        for d in session.demandes.order_by('-pk'):
+        for d in session.demandes.only('session_id','num_demande','id_parcelle_source','num_parcelle','village','source_qualite','d_creation','date_creation','departement','nom_agent','code_agent','surface_postgres','statut_pvcl','statut_rdc','surface').order_by('-pk').iterator(chunk_size=500):
             if not d.num_demande or d.num_demande in seen:continue
             seen.add(d.num_demande)
             if est_exclu(d.id_parcelle_source,d.num_parcelle,d.village,excluded):continue
             if d.source_qualite!='v8':issues.append(f'{d.num_demande} : contrôle 8.3 non exécuté');continue
             dt=d.d_creation or en_date(d.date_creation)
             try:
-                row=validate(dict(n=d.num_demande,dt=dt.isoformat() if dt else '',d=d.departement,a=d.nom_agent or d.code_agent,ha=d.surface,p='t' if d.statut_pvcl=='Pvcl terminé' else 'e' if 'cours' in d.statut_pvcl else 'c',r='t' if d.statut_rdc=='RDC terminé' else 'e' if 'cours' in d.statut_rdc else 'c'),demande=d)
+                row=validate(dict(n=d.num_demande,dt=dt.isoformat() if dt else '',d=d.departement,a=d.nom_agent or d.code_agent,ha=d.surface,p='t' if d.statut_pvcl=='Pvcl terminé' else 'e' if 'cours' in d.statut_pvcl else 'c',r='t' if d.statut_rdc=='RDC terminé' else 'e' if 'cours' in d.statut_rdc else 'c'),demande=d,contexte=contexte)
                 row['source']='controle_qualite_8.3';result[row['n']]=row
             except (ValueError,TypeError) as exc:issues.append(f'{d.num_demande} : {exc}')
-    for row in LigneRendement.objects.all():
+    saisies=list(LigneRendement.objects.all())
+    if saisies:
+        contexte['demandes']={}
+        for d in Demande.objects.filter(num_demande__in=[r.num_demande for r in saisies],session__statut='termine').only('num_demande','departement','surface_postgres').order_by('-session__date_creation','-pk').iterator(chunk_size=500):
+            contexte['demandes'].setdefault(d.num_demande,d)
+    for row in saisies:
         # Explicit manual imports are stored separately and tagged, never alter quality results.
         try:
-            value=validate(row.donnees) if settings.PRESFOR_POSTGRES_SURFACES_ONLY else row.donnees
+            value=validate(row.donnees,contexte=contexte) if settings.PRESFOR_POSTGRES_SURFACES_ONLY else row.donnees
             result[row.num_demande]={**value,'source':'saisie_ou_import'}
         except (ValueError,TypeError) as exc:issues.append(f'{row.num_demande} : {exc}')
     return list(result.values()),issues,session
 
 @ensure_csrf_cookie
 def page(request):
-    return render(request,'terrain/performance.html',{'titre':'Rendement hebdomadaire','sessions':AnalyseSession.objects.filter(statut='termine'),'selection':request.GET.get('session','')})
+    return periodic(request,mode='hebdomadaire')
 
 @ensure_csrf_cookie
 @xframe_options_sameorigin
 def model_page(request):
-    return render(request,'terrain/performance_model.html')
+    return page(request)
 
 @require_http_methods(['GET','POST','DELETE'])
 def api(request):
@@ -124,7 +142,8 @@ def api(request):
         else:
             values=payload.get('rows',[payload.get('row')])
             if not isinstance(values,list) or len(values)>10000:raise ValueError('Lot invalide, maximum 10000 lignes')
-            clean=[validate(r) for r in values]
+            contexte=contexte_rendement()
+            clean=[validate(r,contexte=contexte) for r in values]
             with transaction.atomic():
                 for row in clean:LigneRendement.objects.update_or_create(num_demande=row['n'],defaults={'donnees':row})
         return JsonResponse({'ok':True})
@@ -134,28 +153,55 @@ def api(request):
 def periodic(request,mode='journalier'):
     import calendar as cal
     today=date.today()
-    try:
-        chosen=date.fromisoformat(request.GET.get('periode',today.isoformat()) if mode=='journalier' else request.GET.get('periode',today.strftime('%Y-%m'))+'-01')
-    except ValueError:chosen=today
-    start=chosen if mode=='journalier' else chosen.replace(day=1)
-    end=chosen if mode=='journalier' else chosen.replace(day=cal.monthrange(chosen.year,chosen.month)[1])
-    data,issues,session=rows_for(request.GET.get('session'));groups={}
-    cfg=config()
-    last=max([date.fromisoformat(r['dt']) for r in data]+[date.today()])
+    contexte=contexte_rendement()
+    data,issues,session=rows_for(request.GET.get('session'),contexte=contexte)
+    cfg=contexte['cfg']
+    last=max([date.fromisoformat(r['dt']) for r in data]+[today])
     weeks=calendar(cfg,last+timedelta(days=14))
+    active_weeks={r['w'] for r in data}
+    options=[w for w in weeks if w['k'] in active_weeks]
+    if mode=='hebdomadaire':
+        default=options[-1]['k'] if options else next(w['k'] for w in weeks if w['s']<=today.isoformat()<=w['e'])
+        key=request.GET.get('periode',default)
+        week=next((w for w in weeks if w['k']==key),next(w for w in weeks if w['k']==default))
+        start,end=date.fromisoformat(week['s']),date.fromisoformat(week['e'])
+        periode=week['k']
+        selection=[r for r in data if r['w']==periode]
+    else:
+        try:
+            chosen=date.fromisoformat(request.GET.get('periode',today.isoformat()) if mode=='journalier' else request.GET.get('periode',today.strftime('%Y-%m'))+'-01')
+        except ValueError:chosen=today
+        start=chosen if mode=='journalier' else chosen.replace(day=1)
+        end=chosen if mode=='journalier' else chosen.replace(day=cal.monthrange(chosen.year,chosen.month)[1])
+        periode=chosen.isoformat() if mode=='journalier' else chosen.strftime('%Y-%m')
+        selection=[r for r in data if start.isoformat()<=r['dt']<=end.isoformat()]
     primes=primes_equipes(data,cfg,weeks)
-    selection=[r for r in data if start.isoformat()<=r['dt']<=end.isoformat()]
+    departement=request.GET.get('departement','')
+    superviseur=request.GET.get('superviseur','')
+    selection=[r for r in selection if (not departement or r['d']==departement) and (not superviseur or r['s']==superviseur)]
     equipes=regrouper_equipes(selection,primes)
-    for row in data:
-        if not start.isoformat()<=row['dt']<=end.isoformat():continue
-        k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],ha=0,n=0,pt=0,rt=0))
-        g['ha']+=row['ha'];g['n']+=1;g['pt']+=row['p']=='t';g['rt']+=row['r']=='t'
-    rows=sorted(groups.values(),key=lambda r:-r['ha'])
-    if request.GET.get('export')=='csv':
-        response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="rendement.csv"';response.write('\ufeff');w=csv.writer(response,delimiter=';');w.writerow(['Département','Équipe du superviseur','Agents actifs','Superficie (ha)','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés','Primes hebdomadaires'])
-        for r in equipes:w.writerow([r[k] for k in ('d','s','effectif','ha','n','pt','rt','pr')]+[' ; '.join(p['debut']+' au '+p['fin']+' : '+p['statut'] for p in r['primes'])])
+    groups={};daily={}
+    for row in selection:
+        k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],ha=0,n=0,pt=0,rt=0,pr=0))
+        g['ha']+=row['ha'];g['n']+=1;g['pt']+=row['p']=='t';g['rt']+=row['r']=='t';g['pr']+=row['p']=='t' and row['r']=='t'
+        day=daily.setdefault(row['dt'],dict(ha=0,n=0));day['ha']+=row['ha'];day['n']+=1
+    rows=sorted(groups.values(),key=lambda r:(r['d'],r['s'],-r['ha'],r['a']))
+    for team in equipes:
+        team['detail_agents']=[r for r in rows if r['d']==team['d'] and r['s']==team['s']]
+        team['ratio']=round(team['pr']/team['n']*100,1) if team['n'] else 0
+    if request.GET.get('export'):
+        response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="rendement.csv"';response.write('\ufeff');w=csv.writer(response,delimiter=';')
+        if request.GET.get('export')=='agents':
+            w.writerow(['Département','Superviseur','nom_agent','Superficie (ha)','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés'])
+            for r in rows:w.writerow([r[k] for k in ('d','s','a','ha','n','pt','rt','pr')])
+        else:
+            w.writerow(['Département','Équipe du superviseur','Agents actifs','Superficie (ha)','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés','Primes hebdomadaires'])
+            for r in equipes:w.writerow([r[k] for k in ('d','s','effectif','ha','n','pt','rt','pr')]+[' ; '.join(p['debut']+' au '+p['fin']+' : '+p['statut'] for p in r['primes'])])
         return response
-    return render(request,'terrain/performance_period.html',dict(titre='Rendement '+mode,mode=mode,equipes=equipes,periode=chosen.isoformat() if mode=='journalier' else chosen.strftime('%Y-%m'),rows=rows,issues=issues,sessions=AnalyseSession.objects.filter(statut='termine'),session=session))
+    total=dict(ha=round(sum(t['ha'] for t in equipes),2),n=len(selection),equipes=len(equipes),agents=len(rows),pr=sum(t['pr'] for t in equipes))
+    chart_teams=sorted(equipes,key=lambda t:-t['ha'])[:15]
+    graph=dict(noms=[t['s']+' · '+t['d'] for t in chart_teams],ha=[round(t['ha'],2) for t in chart_teams],n=[t['n'] for t in chart_teams],jours=sorted(daily),jour_ha=[round(daily[d]['ha'],2) for d in sorted(daily)],jour_n=[daily[d]['n'] for d in sorted(daily)])
+    return render(request,'terrain/performance_native.html',dict(titre='Rendement '+mode,mode=mode,equipes=equipes,periode=periode,options=options,rows=rows,issues=issues[:30],nb_issues=len(issues),sessions=AnalyseSession.objects.filter(statut='termine'),session=session,total=total,graph=graph,graph_height=max(420,len(chart_teams)*44+100),cfg=cfg,departement=departement,superviseur=superviseur,superviseurs=sorted({r['s'] for r in data if not departement or r['d']==departement}),date_debut=start,date_fin=end))
 
 
 def referentiel(request):
