@@ -1,4 +1,9 @@
 import io
+import uuid
+import logging
+import threading
+from functools import wraps
+from django.views.decorators.http import require_GET
 from django.db.models import Count, Q, Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
@@ -158,7 +163,22 @@ def dashboard(request):
     })
 
 
+_analyse_lock = threading.Lock()
+
+
+def une_analyse_a_la_fois(view):
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if request.method != 'POST': return view(request, *args, **kwargs)
+        if not _analyse_lock.acquire(blocking=False):
+            return HttpResponse('Une analyse est déjà en cours. Attendez sa fin avant de renvoyer un lot.', status=429)
+        try: return view(request, *args, **kwargs)
+        finally: _analyse_lock.release()
+    return wrapped
+
+
 # ── Upload & Traitement ────────────────────────────────────────────────────────
+@une_analyse_a_la_fois
 def upload(request):
     if request.method == 'POST':
         form = UploadForm(request.POST, request.FILES)
@@ -175,25 +195,34 @@ def upload(request):
                 messages.error(request, "Veuillez sélectionner au moins un fichier CSV.")
                 return render(request, 'analyse/upload.html', {'form': form})
 
+            try: progress_token = str(uuid.UUID(request.POST.get('progress_token','')))
+            except ValueError: progress_token = str(uuid.uuid4())
             # Créer la session
             session = AnalyseSession.objects.create(
                 nom=nom, date_debut_filtre=date_debut,
                 date_fin_filtre=date_fin, statut='en_cours',
                 rattachement=form.cleaned_data.get('rattachement', 'parcelle'),
-                nb_csv=len(csv_files_uploaded))
+                nb_csv=len(csv_files_uploaded),
+                qualite_v8={'progress_token':progress_token,'progress':{'done':0,'total':len(csv_files_uploaded),'phase':'Lecture des fichiers'}})
+
+            def progression(done,total,phase):
+                session.qualite_v8={'progress_token':progress_token,'progress':{'done':done,'total':total,'phase':phase}}
+                AnalyseSession.objects.filter(pk=session.pk).update(qualite_v8=session.qualite_v8)
+                logging.getLogger(__name__).info('Analyse %s : %s (%s/%s)',session.pk,phase,done,total)
 
             try:
-                csv_list = [(f.name, f.read()) for f in csv_files_uploaded]
+                csv_list = [(f.name, f) for f in csv_files_uploaded]
                 parcelle_io = io.BytesIO(parcelle_f.read()) if parcelle_f else None
 
                 source = form.cleaned_data.get('source_parcelles', 'postgis')
                 rattachement = form.cleaned_data.get('rattachement', 'parcelle')
                 result = run_analyse(csv_list, parcelle_io, date_debut, date_fin,
                                      source_parcelles=source,
-                                     rattachement=rattachement)
+                                     rattachement=rattachement, progression=progression)
 
                 session.rapprochement = result.get('rapprochement') or {}
-                session.qualite_v8 = result.get('qualite_v8') or {}
+                progression(len(csv_list),len(csv_list),'Enregistrement des résultats')
+                session.qualite_v8 = {**(result.get('qualite_v8') or {}),**session.qualite_v8}
                 for avertissement in (session.qualite_v8.get('avertissements') or []):
                     messages.warning(request, avertissement)
 
@@ -207,9 +236,10 @@ def upload(request):
                     # Sauvegarder les demandes
                     df = result['demandes']
                     bulk = []
-                    from terrain.identites import resolve_agent
+                    from terrain.identites import resolve_agent, charger_referentiel
+                    referentiel = charger_referentiel()
                     for _,row in df.iterrows():
-                        identite = resolve_agent(row.get('departement',''), row.get('identite_agent',''), row.get('fichier_source',''))
+                        identite = resolve_agent(row.get('departement',''), row.get('identite_agent',''), row.get('fichier_source',''), referentiel=referentiel)
 
                         bulk.append(Demande(
                             session=session,
@@ -259,6 +289,7 @@ def upload(request):
                         ))
                     Demande.objects.bulk_create(bulk, batch_size=500)
 
+                    session.qualite_v8['progress']['phase']='Analyse terminée'
                     session.statut = 'termine'
                     session.save()
 
@@ -274,12 +305,27 @@ def upload(request):
                     messages.error(
                         request,
                         f"Erreur lors du traitement : {e} — si la base terrain est "
-                        f"injoignable, relancez avec le fichier Parcelle Excel.")
+                        f"injoignable, vérifiez la connexion PostgreSQL puis réessayez.")
                 else:
                     messages.error(request, f"Erreur lors du traitement : {e}")
     else:
         form = UploadForm()
     return render(request, 'analyse/upload.html', {'form': form})
+
+
+@require_GET
+def progression_analyse(request):
+    try: token=str(uuid.UUID(request.GET.get('token','')))
+    except ValueError: return JsonResponse({'error':'Identifiant invalide'},status=400)
+    session=AnalyseSession.objects.filter(qualite_v8__progress_token=token).first()
+    if not session: return JsonResponse({'statut':'transfert'})
+    result={'statut':session.statut,**session.qualite_v8.get('progress',{})}
+    if session.statut=='termine':
+        from django.urls import reverse
+        result['url']=reverse('session_detail',kwargs={'pk':session.pk})
+    response=JsonResponse(result)
+    response['Cache-Control']='no-store'
+    return response
 
 
 # ── Détail d'une session ───────────────────────────────────────────────────────

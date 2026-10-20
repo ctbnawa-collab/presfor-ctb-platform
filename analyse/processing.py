@@ -714,9 +714,9 @@ class IndexParcelles:
 
 # ── Pipeline principal ─────────────────────────────────────────────────────────
 def run_analyse(csv_files, parcelle_file=None, date_debut=None, date_fin=None,
-                source_parcelles='fichier', rattachement='parcelle'):
+                source_parcelles='fichier', rattachement='parcelle', progression=None):
     """
-    csv_files       : liste de (nom, contenu_bytes)
+    csv_files       : liste de (nom, contenu_bytes ou fichier ouvert)
     parcelle_file   : contenu_bytes ou None (utilisé si source_parcelles='fichier')
     source_parcelles: 'postgis' | 'fichier' | 'aucune'
     rattachement    : 'parcelle' — la période porte sur la date de levé, et seules
@@ -732,7 +732,10 @@ def run_analyse(csv_files, parcelle_file=None, date_debut=None, date_fin=None,
     avertissements_qualite = []
     nb_dossiers_v8 = 0
 
-    for nom, content_bytes in csv_files:
+    for index_csv, (nom, content_bytes) in enumerate(csv_files):
+        if progression: progression(index_csv, len(csv_files), "Contrôle qualité des CSV")
+        if hasattr(content_bytes, "read"):
+            content_bytes = content_bytes.read()
         try:
             for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252'):
                 try:
@@ -770,6 +773,7 @@ def run_analyse(csv_files, parcelle_file=None, date_debut=None, date_fin=None,
             "(format ### TABLE: applicant attendu)."
         )
 
+    if progression: progression(len(csv_files), len(csv_files), 'Rapprochement avec les parcelles PostgreSQL')
     df_all = pd.concat(all_demandes, ignore_index=True)
 
     # ── Jointure Parcelle (enrichissement surface + complétion département) ────
