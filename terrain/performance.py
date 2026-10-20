@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .models import AgentRendement,LigneRendement,ParametresRendement
 from .identites import resolve_agent,normaliser
+from .equipes import primes_equipes, regrouper_equipes
 from .exclusions import est_exclu,index_exclusions
 from analyse.models import AnalyseSession,Demande,en_date
 
@@ -139,16 +140,22 @@ def periodic(request,mode='journalier'):
     start=chosen if mode=='journalier' else chosen.replace(day=1)
     end=chosen if mode=='journalier' else chosen.replace(day=cal.monthrange(chosen.year,chosen.month)[1])
     data,issues,session=rows_for(request.GET.get('session'));groups={}
+    cfg=config()
+    last=max([date.fromisoformat(r['dt']) for r in data]+[date.today()])
+    weeks=calendar(cfg,last+timedelta(days=14))
+    primes=primes_equipes(data,cfg,weeks)
+    selection=[r for r in data if start.isoformat()<=r['dt']<=end.isoformat()]
+    equipes=regrouper_equipes(selection,primes)
     for row in data:
         if not start.isoformat()<=row['dt']<=end.isoformat():continue
         k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],ha=0,n=0,pt=0,rt=0))
         g['ha']+=row['ha'];g['n']+=1;g['pt']+=row['p']=='t';g['rt']+=row['r']=='t'
     rows=sorted(groups.values(),key=lambda r:-r['ha'])
     if request.GET.get('export')=='csv':
-        response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="rendement.csv"';response.write('\ufeff');w=csv.writer(response,delimiter=';');w.writerow(['Département','Superviseur','nom_agent','Superficie','Demandes','PVCL terminés','RDC terminés'])
-        for r in rows:w.writerow([r[k] for k in ('d','s','a','ha','n','pt','rt')])
+        response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="rendement.csv"';response.write('\ufeff');w=csv.writer(response,delimiter=';');w.writerow(['Département','Équipe du superviseur','Agents actifs','Superficie (ha)','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés','Primes hebdomadaires'])
+        for r in equipes:w.writerow([r[k] for k in ('d','s','effectif','ha','n','pt','rt','pr')]+[' ; '.join(p['debut']+' au '+p['fin']+' : '+p['statut'] for p in r['primes'])])
         return response
-    return render(request,'terrain/performance_period.html',dict(titre='Rendement '+mode,mode=mode,periode=chosen.isoformat() if mode=='journalier' else chosen.strftime('%Y-%m'),rows=rows,issues=issues,sessions=AnalyseSession.objects.filter(statut='termine'),session=session))
+    return render(request,'terrain/performance_period.html',dict(titre='Rendement '+mode,mode=mode,equipes=equipes,periode=chosen.isoformat() if mode=='journalier' else chosen.strftime('%Y-%m'),rows=rows,issues=issues,sessions=AnalyseSession.objects.filter(statut='termine'),session=session))
 
 
 def referentiel(request):

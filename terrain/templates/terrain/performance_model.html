@@ -39,7 +39,7 @@ input,select,button{min-height:44px;font-size:16px;max-width:100%;}
 .best .nm{overflow-wrap:anywhere;}.toast{max-width:calc(100vw - 24px);border-radius:12px;}
 }
 </style></head><body>
-<header><h1>Rendements des agents<small>Département › Superviseur › Agent — objectifs hebdomadaires, RDC et primes</small></h1></header>
+<header><h1>Rendement par équipe de superviseur<small>Département › Superviseur › Agent — objectifs hebdomadaires, RDC et primes</small></h1></header>
 <div class="bar">
 <label>Semaine<select id="fw"></select></label>
 <label>Date création du<input type="date" id="ff"></label>
@@ -48,6 +48,7 @@ input,select,button{min-height:44px;font-size:16px;max-width:100%;}
 <button id="fr">Réinitialiser</button>
 </div>
 <div class="tabs" id="tabs"></div>
+<p class="mu" style="padding:0 16px">Les synthèses et primes sont calculées sur les semaines complètes recouvrant la période choisie. Le détail des demandes conserve le filtre exact par date. Les primes affichées sont des statuts d’éligibilité.</p>
 <p id="issues" role="status" style="padding:0 16px;overflow-wrap:anywhere"></p><main id="m"></main>
 <div id="tt"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -55,7 +56,7 @@ input,select,button{min-height:44px;font-size:16px;max-width:100%;}
 const BASE=[];let REFERENCE=[];
 const DEPTS={BUYO:'Buyo',SOUBRE:'Soubré',MEAGUI:'Méagui'},ST={c:'À créer',e:'En cours',t:'Terminé'};
 let cfg={obj:{BUYO:150,SOUBRE:150,MEAGUI:300},seuil:100},over={},DB=null;
-const S={tab:'syn',w:'',from:'',to:'',q:'',edit:null,lim:100};
+const S={tab:'dep',w:'',from:'',to:'',q:'',edit:null,lim:100};
 const TODAY=new Date().toISOString().slice(0,10);
 const WK=[{k:'14-au-18 setp',s:'2026-09-14',e:'2026-09-18'},{k:'19-au-25 setp',s:'2026-09-19',e:'2026-09-25'},{k:'26 sept-au-04 oct',s:'2026-09-26',e:'2026-10-04'}];
 const addD=(i,n)=>{const d=new Date(i+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
@@ -79,7 +80,7 @@ const cls=(a,b)=>a&&b?'g':a?'o':b?'y':'';
 function calc(week){
   const wi=WK.findIndex(v=>v.k===week);ensure(TODAY,wi+2);
   const grace=WK[wi+1].e,late=TODAY>grace;
-  const rows=all().filter(r=>r.w===week&&(!S.from||r.dt>=S.from)&&(!S.to||r.dt<=S.to));
+  const rows=all().filter(r=>r.w===week);
   const A=new Map();
   rows.forEach(r=>{const k=r.d+'|'+r.s+'|'+r.a;let x=A.get(k);if(!x)A.set(k,x={d:r.d,s:r.s,a:r.a,ha:0,n:0,rt:0,re:0,rc:0,pt:0,pe:0,pc:0});x.ha+=+r.ha||0;x.n++;if(r.r==='t')x.rt++;else if(r.r==='e')x.re++;else x.rc++;if(r.p==='t')x.pt++;else if(r.p==='e')x.pe++;else x.pc++});
   const ag=[...A.values()].map(x=>{x.obj=obj(x.d);x.pct=x.ha/x.obj*100;x.so=x.ha>=x.obj;x.ro=x.n>0&&x.rt===x.n;x.st=x.ro?'ok':late?'manque':'delai';x.po=x.n>0&&x.pt===x.n;x.ps=x.po?'ok':late?'manque':'delai';x.ko=x.ro&&x.po;x.pend=x.so&&!x.ko&&x.st!=='manque'&&x.ps!=='manque';x.note=(x.pct+(x.n?x.pt/x.n*100:0)+(x.n?x.rt/x.n*100:0))/3;x.c=cls(x.so,x.ko);return x});
@@ -278,10 +279,10 @@ function teamForm(){
 function depView(W){
   const c=(a,b)=>a+'/'+b,N=v=>'<td class="num">'+v+'</td>';
   const dr=W.D.map(t=>'<tr><td><b>'+DEPTS[t.d]+'</b></td>'+N(t.ns)+N(t.na)+N(t.ha.toFixed(2)+' / '+t.ob)+N(t.pct.toFixed(0)+'%')+N(t.n)+N(t.pt)+N(t.pe)+N(t.pc)+N(t.rt)+N(t.re)+N(t.rc)+N(c(t.so,t.na))+N(c(t.ro,t.na))+N(c(t.po,t.na))+N(t.g)+'</tr>').join('');
-  const tr=W.sp.map(p=>'<tr class="'+p.c+'"><td>'+esc(p.s)+'</td><td>'+DEPTS[p.d]+'</td>'+N(p.ag.length)+N(p.ha.toFixed(2)+' / '+p.ob)+N(p.pct.toFixed(0)+'%')+N(p.n)+N(p.pt)+N(p.pe)+N(p.pc)+N(p.rt)+N(p.re)+N(p.rc)+N(c(p.so,p.ag.length))+N(c(p.ro,p.ag.length))+N(c(p.po,p.ag.length))+'<td>'+p.ag.filter(x=>x.c==='g').length+' agent(s)'+(p.c==='g'?' · 🏅 sup.':'')+'</td></tr>').join('');
+  const tr=[...W.sp].sort((a,b)=>a.d.localeCompare(b.d)||b.ha-a.ha||a.s.localeCompare(b.s)).map(p=>'<tr class="'+p.c+'"><td>'+esc(p.s)+'</td><td>'+DEPTS[p.d]+'</td>'+N(p.ag.length)+N(p.ha.toFixed(2)+' / '+p.ob)+N(p.pct.toFixed(0)+'%')+N(p.n)+N(p.pt)+N(p.pe)+N(p.pc)+N(p.rt)+N(p.re)+N(p.rc)+N(c(p.so,p.ag.length))+N(c(p.ro,p.ag.length))+N(c(p.po,p.ag.length))+'<td>'+p.ag.filter(x=>x.c==='g').length+' agent(s) éligible(s) · '+(p.c==='g'?'🏅 Superviseur éligible':p.sok&&!W.late?'Prime superviseur en attente':'Superviseur non éligible')+'</td></tr>').join('');
   const h='<th class="num">Demandes</th><th class="num">PVCL terminés</th><th class="num">PVCL en cours</th><th class="num">PVCL à créer</th><th class="num">RDC terminés</th><th class="num">RDC en cours</th><th class="num">RDC à créer</th><th class="num">Agents superficie atteinte</th><th class="num">Agents RDC soldés</th><th class="num">Agents PVCL soldés</th>';
   return '<div class="card tw"><b>Par département</b><table><thead><tr><th>Département</th><th class="num">Équipes</th><th class="num">Agents</th><th class="num">Superficie (ha) / objectif</th><th class="num">Taux</th>'+h+'<th class="num">Agents PRIME</th></tr></thead><tbody>'+dr+'</tbody></table></div>'
-  +'<div class="card tw"><b>Par équipe de superviseur</b><table><thead><tr><th>Superviseur</th><th>Département</th><th class="num">Agents</th><th class="num">Superficie (ha) / objectif</th><th class="num">Taux</th>'+h+'<th>Prime</th></tr></thead><tbody>'+tr+'</tbody></table></div>';
+  +'<div class="card tw"><b>Équipes de superviseurs par département — classement par superficie</b><table><thead><tr><th>Superviseur</th><th>Département</th><th class="num">Agents</th><th class="num">Superficie (ha) / objectif</th><th class="num">Taux</th>'+h+'<th>Prime</th></tr></thead><tbody>'+tr+'</tbody></table></div>';
 }
 function prm(){return prmCfg()+prmWeeks()}
 function prmWeeks(){
@@ -299,11 +300,11 @@ function render(){
   const ws=wlist(),sel=document.getElementById('fw');
   if(!S.w&&!S.init){S.w=ws.length?ws[ws.length-1].k:'';S.init=1}
   sel.innerHTML='<option value="">Toutes les semaines</option>'+ws.map(v=>'<option value="'+v.k+'"'+(S.w===v.k?' selected':'')+'>'+wl(v.k)+'</option>').join('');
-  document.getElementById('tabs').innerHTML=[['syn','Synthèse & primes'],['hier','Hiérarchie'],['dep','Départements & équipes'],['cmp','Comparaison'],['det','Saisie & détail'],['prm','Paramètres']].map(([k,t])=>'<button data-t="'+k+'" class="'+(S.tab===k?'on':'')+'">'+t+'</button>').join('');
+  document.getElementById('tabs').innerHTML=[['syn','Synthèse & primes'],['hier','Hiérarchie'],['dep','Équipes par département & primes'],['cmp','Comparaison'],['det','Saisie & détail'],['prm','Paramètres']].map(([k,t])=>'<button data-t="'+k+'" class="'+(S.tab===k?'on':'')+'">'+t+'</button>').join('');
   const m=document.getElementById('m');let h='';
   if(S.tab==='syn'||S.tab==='hier'||S.tab==='dep'){
     h='<div class="leg"><span class="chip o">Superficie atteinte</span><span class="chip y">RDC + PVCL terminés</span><span class="chip g">Superficie + RDC + PVCL → PRIME</span><span class="chip n">En attente (délai S+1)</span></div>';
-    const list=(S.w?ws.filter(v=>v.k===S.w):[...ws].reverse());let any=0;
+    const list=(S.w?ws.filter(v=>v.k===S.w):[...ws].reverse()).filter(v=>(!S.from||v.e>=S.from)&&(!S.to||v.s<=S.to));let any=0;
     list.forEach(v=>{const W=calc(v.k);if(!W.rows.length)return;any=1;h+='<div class="wk">Semaine '+wl(v.k)+'<span>'+W.rows.length+' demandes · RDC et PVCL à solder avant le '+fmt(W.grace)+'</span></div>'+(S.tab==='syn'?syn(W):S.tab==='dep'?depView(W):agTable(W))});
     if(!any)h+='<div class="card mu">Aucune donnée pour ce filtre.</div>';
   }else h=S.tab==='det'?det():S.tab==='cmp'?cmpView():prm();
