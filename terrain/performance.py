@@ -14,6 +14,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .models import AgentRendement,LigneRendement,ParametresRendement
 from .identites import resolve_agent,normaliser,charger_referentiel
 from .equipes import primes_equipes, regrouper_equipes
+from .parcelles_count import compter_parcelles
 from .exclusions import est_exclu,index_exclusions
 from analyse.models import AnalyseSession,Demande,en_date
 
@@ -90,7 +91,7 @@ def rows_for(session_id=None,contexte=None):
             dt=d.d_creation or en_date(d.date_creation)
             try:
                 row=validate(dict(n=d.num_demande,dt=dt.isoformat() if dt else '',d=d.departement,a=d.nom_agent or d.code_agent,ha=d.surface,p='t' if d.statut_pvcl=='Pvcl terminé' else 'e' if 'cours' in d.statut_pvcl else 'c',r='t' if d.statut_rdc=='RDC terminé' else 'e' if 'cours' in d.statut_rdc else 'c'),demande=d,contexte=contexte)
-                row['source']='controle_qualite_8.3';result[row['n']]=row
+                row.update(source='controle_qualite_8.3',id_parcelle=d.id_parcelle_source,code_parcelle=d.num_parcelle,village=d.village);result[row['n']]=row
             except (ValueError,TypeError) as exc:issues.append(f'{d.num_demande} : {exc}')
     return list(result.values()),issues,session
 
@@ -172,9 +173,11 @@ def periodic(request,mode='journalier'):
     equipes=regrouper_equipes(selection,primes)
     groups={};daily={}
     for row in selection:
-        k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],code_agent=row['code_agent'],ha=0,n=0,pt=0,rt=0,pr=0))
+        k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],code_agent=row['code_agent'],ha=0,n=0,pt=0,rt=0,pr=0,parcelles=[]))
+        g['parcelles'].append(row)
         g['ha']+=row['ha'];g['n']+=1;g['pt']+=row['p']=='t';g['rt']+=row['r']=='t';g['pr']+=row['p']=='t' and row['r']=='t'
         day=daily.setdefault(row['dt'],dict(ha=0,n=0));day['ha']+=row['ha'];day['n']+=1
+    for g in groups.values():g['nb_parcelles']=compter_parcelles(g.pop('parcelles'))
     rows=sorted(groups.values(),key=lambda r:(r['d'],r['s'],-r['ha'],r['a']))
     for team in equipes:
         team['detail_agents']=[r for r in rows if r['d']==team['d'] and r['s']==team['s']]
@@ -182,8 +185,8 @@ def periodic(request,mode='journalier'):
     if request.GET.get('export'):
         response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="rendement.csv"';response.write('\ufeff');w=csv.writer(response,delimiter=';')
         if request.GET.get('export')=='agents':
-            w.writerow(['Département','Superviseur','nom_agent','Superficie (ha)','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés'])
-            for r in rows:w.writerow([r[k] for k in ('d','s','a','ha','n','pt','rt','pr')])
+            w.writerow(['Département','Superviseur','nom_agent','Superficie (ha)','Nombre de parcelles','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés'])
+            for r in rows:w.writerow([r[k] for k in ('d','s','a','ha','nb_parcelles','n','pt','rt','pr')])
         else:
             w.writerow(['Département','Équipe du superviseur','Agents actifs','Superficie (ha)','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés','Primes hebdomadaires'])
             for r in equipes:w.writerow([r[k] for k in ('d','s','effectif','ha','n','pt','rt','pr')]+[' ; '.join(p['debut']+' au '+p['fin']+' : '+p['statut'] for p in r['primes'])])
