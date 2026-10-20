@@ -293,43 +293,32 @@ def rendement_agent(request, pk):
 
 # ── Agents ───────────────────────────────────────────────────────────────────
 def agents(request):
-    liste = Agent.objects.all()
-    recherche = request.GET.get('q', '').strip()
-    dept = request.GET.get('departement', '')
-    fonction = request.GET.get('fonction', '')
-    statut = request.GET.get('statut', '')
-    if recherche:
-        from django.db.models import Q
-        liste = liste.filter(Q(nom__icontains=recherche) | Q(prenoms__icontains=recherche)
-                             | Q(id_machine__icontains=recherche)
-                             | Q(matricule__icontains=recherche))
-    if dept:
-        liste = liste.filter(departement=dept)
-    if fonction:
-        liste = liste.filter(fonction=fonction)
-    if statut == 'actif':
-        liste = liste.filter(actif=True)
-    elif statut == 'inactif':
-        liste = liste.filter(actif=False)
-
-    if request.GET.get('export') == 'csv':
-        return _export_csv('agents.csv',
-                           ['ID machine', 'Nom', 'Prénoms', 'Fonction', 'Département',
-                            'Sous-préfecture', 'Téléphone', 'Matricule', 'Objectif', 'Actif'],
-                           [[a.id_machine, a.nom, a.prenoms, a.get_fonction_display(),
-                             a.departement, a.sous_prefecture, a.telephone, a.matricule,
-                             a.objectif_journalier, 'oui' if a.actif else 'non']
-                            for a in liste])
-
-    return render(request, 'terrain/agents.html', {
-        'agents': liste, 'total': Agent.objects.count(),
-        'nb_actifs': Agent.objects.filter(actif=True).count(),
-        'par_dept': [{'nom': d, 'nb': Agent.objects.filter(departement__contains=d).count()}
-                     for d in DEPARTEMENTS],
-        'q': recherche, 'departement': dept, 'fonction': fonction, 'statut': statut,
-        'fonctions': Agent.FONCTIONS, 'departements': DEPARTEMENTS,
-        'titre': 'Agents',
-    })
+    from .models import AgentRendement
+    from .agents_registre import fusionner_agents
+    from analyse.models import AnalyseSession
+    referentiel=list(AgentRendement.objects.values('departement','code_agent','nom_agent','superviseur','controleur'))
+    fiches=list(Agent.objects.values())
+    toutes=fusionner_agents(referentiel,fiches)
+    recherche=request.GET.get('q','').strip()
+    dept=request.GET.get('departement','')
+    fonction=request.GET.get('fonction','')
+    statut=request.GET.get('statut','')
+    libelles=dict(Agent.FONCTIONS)
+    liste=[]
+    for row in toutes:
+        row['fonction_libelle']=libelles.get(row.get('fonction'),'Non renseignée')
+        if dept and row['departement']!=dept:continue
+        if fonction and row.get('fonction')!=fonction:continue
+        if statut=='actif' and row.get('actif') is not True:continue
+        if statut=='inactif' and row.get('actif') is not False:continue
+        if statut=='non_renseigne' and row.get('actif') is not None:continue
+        if recherche and recherche.casefold() not in ' '.join(str(row.get(k) or '') for k in ['nom_complet','id_machine','matricule','superviseur','controleur']).casefold():continue
+        liste.append(row)
+    if request.GET.get('export')=='csv':
+        return _export_csv('agents.csv',['ID machine','Nom','Prénoms','Fonction','Département','Sous-préfecture','Téléphone','Matricule','Objectif','Actif','Nom complet','Superviseur','Contrôleur','Source'],
+            [[r.get('id_machine',''),r.get('nom',''),r.get('prenoms',''),r['fonction_libelle'],r['departement'],r.get('sous_prefecture',''),r.get('telephone',''),r.get('matricule',''),r.get('objectif_journalier',''),'oui' if r.get('actif') is True else 'non' if r.get('actif') is False else 'non renseigné',r['nom_complet'],r['superviseur'],r['controleur'],'Référentiel rendement' if r['referentiel'] else 'Fiche complémentaire'] for r in liste])
+    return render(request,'terrain/agents.html',dict(agents=liste,total=len(toutes),nb_reference=len(referentiel),nb_actifs=sum(r.get('actif') is True for r in toutes),
+        par_dept=[{'nom':d,'nb':sum(d in r['departement'] for r in toutes)} for d in DEPARTEMENTS],q=recherche,departement=dept,fonction=fonction,statut=statut,fonctions=Agent.FONCTIONS,departements=DEPARTEMENTS,titre='Agents',derniere_analyse=AnalyseSession.objects.filter(statut='termine').first()))
 
 
 def agent_form(request, pk=None):

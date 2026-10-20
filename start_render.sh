@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -o errexit
 python manage.py migrate --noinput
+python manage.py charger_agents_reference
 python manage.py charger_oppositions_reference
 python manage.py initialiser_compte_render
 python manage.py tester_postgis
