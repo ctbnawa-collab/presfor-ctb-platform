@@ -10,6 +10,8 @@
 {% endblock %}
 
 {% block extra_css %}
+.webmap-couches>.dropdown-toggle{display:none}.webmap-couches>.dropdown-menu{position:static;display:block;transform:none!important;width:270px!important;min-width:0!important;max-height:calc(100vh - 210px)!important;overflow:auto}.webmap-couches{min-width:0}
+@media(min-width:1400px){.carte-zone:has(.webmap-couches){grid-template-columns:270px minmax(0,1fr) 300px}}
 .carte-zone{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start;}
 #carte{height:calc(100vh - 210px);min-height:460px;border-radius:11px;
   box-shadow:0 1px 3px rgba(18,58,94,.09);background:#dfe7ef;}
@@ -120,13 +122,13 @@
 <div class="filtres mb-3 py-2">
   <div class="d-flex align-items-center flex-wrap gap-2">
 
-    <div class="dropdown">
+    <div class="dropdown" id="gestion-couches">
       <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
               data-bs-toggle="dropdown" data-bs-auto-close="outside">
         <i class="fa fa-layer-group me-1"></i>Couches
         <span class="badge bg-primary ms-1" id="cpt-couches">2</span>
       </button>
-      <div class="dropdown-menu p-0 shadow" style="min-width:340px;max-height:70vh;overflow-y:auto">
+      <div class="dropdown-menu p-0 shadow" style="width:min(360px,90vw);max-height:70vh;overflow-y:auto">
 
         <div class="px-3 pt-3 pb-2">
           <div class="text-uppercase text-muted fw-semibold" style="font-size:.66rem;letter-spacing:.07em">
@@ -138,13 +140,13 @@
             <label class="form-check-label small" for="fond-osm">Plan OpenStreetMap</label></div>
           <div class="form-check">
             <input class="form-check-input" type="radio" name="fond" id="fond-sat" value="sat">
-            <label class="form-check-label small" for="fond-sat">Imagerie satellite</label></div>
+            <label class="form-check-label small" for="fond-sat">Satellite Esri</label></div>
         </div>
 
         <div class="dropdown-divider my-1"></div>
         <div class="px-3 pt-1 pb-2">
           <div class="text-uppercase text-muted fw-semibold" style="font-size:.66rem;letter-spacing:.07em">
-            Base locale</div>
+            Publicité et exclusions</div>
         </div>
         <div class="px-3 pb-2" id="couches-locales"></div>
 
@@ -152,7 +154,7 @@
         <div class="dropdown-divider my-1"></div>
         <div class="px-3 pt-1 pb-2 d-flex justify-content-between align-items-center">
           <span class="text-uppercase text-muted fw-semibold" style="font-size:.66rem;letter-spacing:.07em">
-            Base terrain</span>
+            Couches et légende</span>
           <input type="search" id="filtre-couches" class="form-control form-control-sm"
                  style="width:130px;font-size:.75rem" placeholder="Filtrer…">
         </div>
@@ -241,6 +243,9 @@
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
 const URL_PARCELLES = "{% url 'api_parcelles' %}";
+const bureau=window.matchMedia('(min-width: 1400px)');
+const gestionCouches=document.getElementById('gestion-couches');
+if(bureau.matches){const zone=document.querySelector('.carte-zone');zone.prepend(gestionCouches);gestionCouches.classList.add('webmap-couches');}
 const CSRF = "{{ csrf_token }}";
 const ETENDUE = {{ etendue_json|safe }};
 
@@ -264,6 +269,8 @@ const CHAMPS = [
 ];
 
 const carte = L.map('carte', {preferCanvas: true});
+L.control.scale({imperial:false,position:'bottomleft'}).addTo(carte);
+['references','servitudes','parcelles'].forEach((nom,i)=>{carte.createPane(nom);carte.getPane(nom).style.zIndex=String(410+i*10);});
 carte.fitBounds([[ETENDUE.latMin, ETENDUE.lonMin], [ETENDUE.latMax, ETENDUE.lonMax]]);
 
 const fondOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -289,7 +296,7 @@ function ficheParcelle(p,titre){
      lib.textContent=k+' : ';ligne.appendChild(lib);ligne.appendChild(document.createTextNode(v || 'Non renseigné'));bloc.appendChild(ligne);
    });return bloc;
 }
-const couchePubliees = L.geoJSON(null, {
+const couchePubliees = L.geoJSON(null, {pane:'parcelles',
   style: () => ({color: '#1F4E79', weight: 1.2, fillColor: '#2E75B6', fillOpacity: .28}),
   onEachFeature: (f, l) => {
     l.bindPopup(ficheParcelle(f.properties,'Parcelle en publicité'));
@@ -312,7 +319,7 @@ const couchesTerrain = {};      // table → L.geoJSON
 const couchesChargees = {};     // table → emprise déjà chargée
 
 COUCHES_TERRAIN.forEach(c => {
-  const groupe = L.geoJSON(null, {
+  const groupe = L.geoJSON(null, {pane:c.table==='parcelle'?'parcelles':c.table.startsWith('projet-')?'servitudes':'references',
     style: () => ({color: c.couleur, weight: 1.4, fillColor: c.couleur,
                    fillOpacity: .12}),
     pointToLayer: (f, latlng) => L.circleMarker(latlng, {
@@ -341,26 +348,23 @@ const COUCHES_LOCALES = [
    groupe: coucheExclues, actif: false},
 ];
 
-function ligneCouche(id, libelle, couleur, actif, suffixe) {
-  return `<div class="form-check d-flex align-items-center couche-ligne" data-nom="${libelle.toLowerCase()}">
-      <input class="form-check-input" type="checkbox" id="${id}" ${actif ? 'checked' : ''}>
-      <label class="form-check-label small d-flex align-items-center ms-1 flex-grow-1" for="${id}">
-        <span style="display:inline-block;width:11px;height:11px;border-radius:3px;
-                     background:${couleur};margin-right:7px;flex:none"></span>
-        ${libelle}${suffixe || ''}
-      </label></div>`;
+function echapperHTML(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function ligneCouche(id,libelle,couleur,actif,suffixe='',disponible=true,motif=''){
+  return `<div class="couche-ligne py-1" data-nom="${echapperHTML(libelle.toLowerCase())}"><div class="form-check d-flex align-items-center">
+    <input class="form-check-input" type="checkbox" id="${echapperHTML(id)}" ${actif?'checked':''} ${disponible?'':'disabled'}>
+    <label class="form-check-label small ms-2" for="${echapperHTML(id)}"><span style="display:inline-block;width:13px;height:4px;background:${/^#[0-9a-f]{6}$/i.test(couleur)?couleur:'#777'};margin-right:6px"></span>${echapperHTML(libelle)} ${disponible?'':'· indisponible'}</label></div>
+    ${disponible?`<label class="small text-muted d-flex align-items-center gap-2 ms-4">Opacité <input class="form-range m-0" style="width:95px" type="range" min="0" max="1" step="0.1" value="1" data-opacite="${echapperHTML(id)}" aria-label="Opacité ${echapperHTML(libelle)}"></label>`:`<div class="small text-muted ms-4">${echapperHTML(motif || 'Couche absente de la base')}</div>`}</div>`;
 }
-
-document.getElementById('couches-locales').innerHTML =
-  COUCHES_LOCALES.map(c => ligneCouche('loc-' + c.cle, c.libelle, c.couleur, c.actif)).join('');
-
-const zoneTerrain = document.getElementById('couches-terrain');
-if (zoneTerrain) {
-  zoneTerrain.innerHTML = COUCHES_TERRAIN
-    .map(c => ligneCouche('ter-' + c.table, c.libelle, c.couleur, false,
-                          c.libelle === c.table ? '' : ` <span class="text-muted">(${c.table})</span>`))
-    .join('') || '<div class="small text-muted">Aucune couche détectée.</div>';
+document.getElementById('couches-locales').innerHTML=COUCHES_LOCALES.map(c=>ligneCouche('loc-'+c.cle,c.libelle,c.couleur,c.actif)).join('');
+const zoneTerrain=document.getElementById('couches-terrain');
+if(zoneTerrain){
+  const groupes=[['Parcelles PostgreSQL',c=>c.table==='parcelle'],['Servitudes et zonages',c=>c.table.startsWith('projet-')],['Référentiels : villages, douars, secteurs',c=>['code_village','douar','secteur'].includes(c.table)],['Autres couches',c=>c.table!=='parcelle'&&!c.table.startsWith('projet-')&&!['code_village','douar','secteur'].includes(c.table)]];
+  zoneTerrain.innerHTML=groupes.map(([nom,test])=>{const cs=COUCHES_TERRAIN.filter(test);return cs.length?`<details open class="border-top py-2"><summary class="small fw-semibold">${nom}</summary>${cs.map(c=>ligneCouche('ter-'+c.table,c.libelle,c.couleur,false,'',c.disponible,c.motif)).join('')}</details>`:'';}).join('');
 }
+document.querySelectorAll('[data-opacite]').forEach(el=>el.addEventListener('input',()=>{
+ const id=el.dataset.opacite;const groupe=id.startsWith('ter-')?couchesTerrain[id.slice(4)]:COUCHES_LOCALES.find(c=>'loc-'+c.cle===id)?.groupe;
+ if(groupe){groupe.options.opacite=Number(el.value);groupe.setStyle({opacity:Number(el.value),fillOpacity:Number(el.value)*.2});}
+}));
 
 function basculer(groupe, actif) {
   if (actif) { if (!carte.hasLayer(groupe)) groupe.addTo(carte); }
@@ -386,6 +390,8 @@ COUCHES_TERRAIN.forEach(c => {
   if (el) el.addEventListener('change', () => basculer(couchesTerrain[c.table], el.checked));
 });
 
+const parcellesPG=COUCHES_TERRAIN.find(c=>c.table==='parcelle'&&c.disponible);
+if(parcellesPG){const casePG=document.getElementById('ter-parcelle');if(casePG)casePG.checked=true;basculer(couchesTerrain.parcelle,true);}
 document.querySelectorAll('input[name="fond"]').forEach(r => {
   r.addEventListener('change', () => {
     carte.removeLayer(fondOSM); carte.removeLayer(satellite);
@@ -425,16 +431,18 @@ async function chargerCoucheTerrain(table) {
   majCompteur('Chargement de la couche…');
   try {
     const url = table.startsWith('projet-') ? `/terrain/api/servitudes/${encodeURIComponent(table.slice(7))}/?bbox=${emprise}` : `/terrain/api/couche/${table}/?bbox=${emprise}&limite=1500`;
-    const r = await fetch(url);
+    const r = await fetch(url,{signal:AbortSignal.timeout(25000)});
     const d = await r.json();
-    if (d.erreur) { signaler(d.erreur, 'warning'); return; }
+    if (!r.ok || d.erreur) throw Error(d.erreur || 'Chargement refusé');
     groupe.clearLayers();
     groupe.addData(d);
+    if(groupe.options.opacite!==undefined)groupe.setStyle({opacity:groupe.options.opacite,fillOpacity:groupe.options.opacite*.2});
     majCompteur(d.tronque
       ? `${d.couche} : ${d.nb} objets sur ${d.total} — zoomez pour tout voir`
       : `${d.couche} : ${d.nb} objet(s)`);
   } catch (e) {
-    signaler('Couche indisponible : ' + table, 'warning');
+    delete couchesChargees[table];
+    signaler('Couche indisponible : ' + table + ' — réessayez avec Recharger.', 'warning');
   }
 }
 

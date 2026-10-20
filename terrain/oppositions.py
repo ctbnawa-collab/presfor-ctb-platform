@@ -28,14 +28,17 @@ def synthese(queryset):
     reglees = queryset.filter(statut='reglee')
 
     delais = [o.delai_jours for o in closes if o.delai_jours is not None]
-    delais_ouverts = [o.delai_jours for o in queryset.exclude(statut__in=Opposition.STATUTS_CLOS)
+    delais_ouverts = [o.delai_jours for o in queryset.filter(statut__in=['enregistree','instruction','conciliation'])
                       if o.delai_jours is not None]
 
     return {
         'total': total,
         'nb_closes': closes.count(),
         'nb_reglees': reglees.count(),
-        'nb_ouvertes': total - closes.count(),
+        'nb_ouvertes': queryset.filter(statut__in=['enregistree','instruction','conciliation']).count(),
+        'nb_sans_statut': queryset.filter(statut='non_renseigne').count(),
+        'nb_sans_date': queryset.filter(date_opposition__isnull=True).count(),
+        'nb_levees': queryset.filter(statut='levee').count(),
         'taux_reglement': round(reglees.count() / total * 100, 1) if total else 0,
         'taux_traitement': round(closes.count() / total * 100, 1) if total else 0,
         'delai_moyen': round(sum(delais) / len(delais), 1) if delais else 0,
@@ -66,7 +69,7 @@ def par_type(queryset):
 def par_agent(queryset):
     agg = defaultdict(lambda: {'nom': '', 'total': 0, 'reglees': 0, 'ouvertes': 0, 'delais': []})
     for o in queryset.select_related('agent'):
-        cle = o.agent.nom_complet if o.agent else 'Non affecté'
+        cle = o.agent.nom_complet if o.agent else (o.source_metadata.get('ce') or 'Non affecté')
         e = agg[cle]
         e['nom'] = cle
         e['total'] += 1

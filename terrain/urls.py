@@ -6,6 +6,7 @@ from . import views
 from . import performance
 
 urlpatterns = [
+    path('rendements/analyses-agent/',performance.analyses_agent,name='analyses_agent'),
     path('servitudes/importer/',servitudes.importer,name='importer_servitudes'),
     path('api/servitudes/<str:cle>/',servitudes.couche,name='api_servitudes'),
     path('carte-geoserver/', performance.geoserver, name='carte_geoserver'),
@@ -69,3 +70,4 @@ urlpatterns = [
     # Import de couches shapefile
     path('couches/importer/',             views.importer_couche,     name='importer_couche'),
 ]
+

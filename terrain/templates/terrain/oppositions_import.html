@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Importer des oppositions — PRESFOR CTB{% endblock %}
 {% block content %}
-<div class="row g-3">
+<div class="alert alert-info">Le classeur de référence est reconnu avec ses feuilles SUIVI DES OPPOSITIONS et DETAILS OPPOSITIONS. Les réimports actualisent les dossiers sans dupliquer les opposants. Les champs non renseignés sont conservés.</div><div class="row g-3">
   <div class="col-lg-6"><div class="card">
     <div class="card-header">Import d'un fichier de suivi</div>
     <div class="card-body">
@@ -21,7 +21,7 @@
       <p class="small text-muted mb-0">
         <code>code_parcelle</code>, <code>num_demande</code>, <code>departement</code>,
         <code>sous_prefecture</code>, <code>village</code>, <code>demandeur</code>,
-        <code>opposant</code>, <code>motif</code>, <code>date_opposition</code> (obligatoire),
+        <code>opposant</code>, <code>motif</code>, <code>date_opposition</code> (facultative pour le classeur de référence),
         <code>date_reglement</code>, <code>statut</code>, <code>issue</code>.
         Dates acceptées : JJ/MM/AAAA ou AAAA-MM-JJ.
       </p>
@@ -32,8 +32,7 @@
     <div class="card-body">
       <p class="small text-muted">
         Si les oppositions sont déjà saisies dans la base PostGIS, adaptez le fichier
-        <code>terrain/sql/oppositions.sql</code> au schéma réel : la section Rendement
-        bascule automatiquement dessus dès que la requête s'exécute sans erreur.
+        <code>terrain/sql/oppositions.sql</code> au schéma réel : le suivi des litiges peut exploiter ces données après adaptation. Le rendement des agents reste alimenté par les résultats des analyses CSV.
       </p>
       <a href="{% url 'terrain_explorateur' %}" class="btn btn-outline-primary btn-sm">
         <i class="fa fa-magnifying-glass-chart me-1"></i>Explorer les tables de la base</a>
@@ -44,8 +43,8 @@
     <div class="card-header">Résultat</div>
     <div class="card-body"><table class="table table-sm tbl-sm mb-0">
       <tr><th>Lignes lues</th><td>{{ resume.lignes }}</td></tr>
-      <tr><th>Oppositions créées</th><td class="text-success fw-semibold">{{ resume.cree }}</td></tr>
-      <tr><th>Lignes ignorées</th><td class="text-warning">{{ resume.ignore }}</td></tr>
+      <tr><th>Dossiers créés</th><td class="text-success fw-semibold">{{ resume.cree }}</td></tr>
+      <tr><th>Dossiers actualisés</th><td>{{ resume.actualise|default:0 }}</td></tr><tr><th>Sans date exploitable</th><td>{{ resume.sans_date|default:0 }}</td></tr><tr><th>Statut non renseigné</th><td>{{ resume.sans_statut|default:0 }}</td></tr><tr><th>Lignes ignorées</th><td class="text-warning">{{ resume.ignore }}</td></tr>
     </table></div>
   </div>
   {% endif %}

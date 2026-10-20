@@ -67,6 +67,8 @@ class Opposition(models.Model):
     """Opposition ou litige foncier suivi jusqu'à son règlement."""
 
     STATUTS = [
+        ('non_renseigne', 'Statut non renseigné'),
+        ('levee', 'Opposition levée'),
         ('enregistree', 'Enregistrée'),
         ('instruction', 'En instruction'),
         ('conciliation', 'En conciliation'),
@@ -74,7 +76,7 @@ class Opposition(models.Model):
         ('rejetee',     'Rejetée'),
         ('transmise',   'Transmise au tribunal'),
     ]
-    STATUTS_CLOS = ('reglee', 'rejetee', 'transmise')
+    STATUTS_CLOS = ('reglee', 'rejetee', 'transmise', 'levee')
 
     TYPES = [
         ('limite',      'Contestation de limite'),
@@ -96,13 +98,15 @@ class Opposition(models.Model):
     type_litige = models.CharField('Type de litige', max_length=20, choices=TYPES, default='limite')
     motif       = models.TextField('Motif', blank=True)
 
-    date_opposition = models.DateField('Date de l\'opposition')
+    date_opposition = models.DateField('Date de l\'opposition', null=True, blank=True)
     date_reglement  = models.DateField('Date de règlement', null=True, blank=True)
     statut          = models.CharField('Statut', max_length=20, choices=STATUTS, default='enregistree')
     issue           = models.TextField('Issue / décision', blank=True)
 
     agent      = models.ForeignKey(Agent, null=True, blank=True, on_delete=models.SET_NULL,
                                    related_name='oppositions', verbose_name='Agent en charge')
+    source_reference = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    source_metadata = models.JSONField(default=dict, blank=True)
     source     = models.CharField(max_length=20, default='saisie',
                                   choices=[('saisie', 'Saisie manuelle'),
                                            ('import', 'Import CSV'),
@@ -126,6 +130,8 @@ class Opposition(models.Model):
     def delai_jours(self):
         """Délai de traitement en jours (jusqu'au règlement, ou jusqu'à aujourd'hui)."""
         from datetime import date as _d
+        if self.est_close and not self.date_reglement:
+            return None
         fin = self.date_reglement or _d.today()
         if not self.date_opposition:
             return None
@@ -316,3 +322,9 @@ class CoucheServitude(models.Model):
     revision = models.CharField(max_length=64)
     modifiee_le = models.DateTimeField(auto_now=True)
 
+
+
+class ChargementReference(models.Model):
+    cle = models.CharField(max_length=60, unique=True)
+    revision = models.CharField(max_length=64)
+    importe_le = models.DateTimeField(auto_now=True)

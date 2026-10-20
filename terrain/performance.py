@@ -92,17 +92,6 @@ def rows_for(session_id=None,contexte=None):
                 row=validate(dict(n=d.num_demande,dt=dt.isoformat() if dt else '',d=d.departement,a=d.nom_agent or d.code_agent,ha=d.surface,p='t' if d.statut_pvcl=='Pvcl terminé' else 'e' if 'cours' in d.statut_pvcl else 'c',r='t' if d.statut_rdc=='RDC terminé' else 'e' if 'cours' in d.statut_rdc else 'c'),demande=d,contexte=contexte)
                 row['source']='controle_qualite_8.3';result[row['n']]=row
             except (ValueError,TypeError) as exc:issues.append(f'{d.num_demande} : {exc}')
-    saisies=list(LigneRendement.objects.all())
-    if saisies:
-        contexte['demandes']={}
-        for d in Demande.objects.filter(num_demande__in=[r.num_demande for r in saisies],session__statut='termine').only('num_demande','departement','surface_postgres','servitudes').order_by('-session__date_creation','-pk').iterator(chunk_size=500):
-            contexte['demandes'].setdefault(d.num_demande,d)
-    for row in saisies:
-        # Explicit manual imports are stored separately and tagged, never alter quality results.
-        try:
-            value=validate(row.donnees,contexte=contexte) if settings.PRESFOR_POSTGRES_SURFACES_ONLY else row.donnees
-            result[row.num_demande]={**value,'source':'saisie_ou_import'}
-        except (ValueError,TypeError) as exc:issues.append(f'{row.num_demande} : {exc}')
     return list(result.values()),issues,session
 
 @ensure_csrf_cookie
@@ -146,12 +135,7 @@ def api(request):
             if any(a[1]>=b[0] for a,b in zip(intervals,intervals[1:])):raise ValueError('Les semaines se chevauchent')
             ParametresRendement.objects.update_or_create(pk=1,defaults={'donnees':cfg})
         else:
-            values=payload.get('rows',[payload.get('row')])
-            if not isinstance(values,list) or len(values)>10000:raise ValueError('Lot invalide, maximum 10000 lignes')
-            contexte=contexte_rendement()
-            clean=[validate(r,contexte=contexte) for r in values]
-            with transaction.atomic():
-                for row in clean:LigneRendement.objects.update_or_create(num_demande=row['n'],defaults={'donnees':row})
+            raise ValueError('Le rendement est alimenté uniquement par les analyses CSV terminées.')
         return JsonResponse({'ok':True})
     except (ValueError,TypeError,KeyError,OverflowError) as exc:return JsonResponse({'error':str(exc)},status=400)
 
@@ -188,7 +172,7 @@ def periodic(request,mode='journalier'):
     equipes=regrouper_equipes(selection,primes)
     groups={};daily={}
     for row in selection:
-        k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],ha=0,n=0,pt=0,rt=0,pr=0))
+        k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],code_agent=row['code_agent'],ha=0,n=0,pt=0,rt=0,pr=0))
         g['ha']+=row['ha'];g['n']+=1;g['pt']+=row['p']=='t';g['rt']+=row['r']=='t';g['pr']+=row['p']=='t' and row['r']=='t'
         day=daily.setdefault(row['dt'],dict(ha=0,n=0));day['ha']+=row['ha'];day['n']+=1
     rows=sorted(groups.values(),key=lambda r:(r['d'],r['s'],-r['ha'],r['a']))
@@ -217,3 +201,20 @@ def referentiel(request):
 def geoserver(request):
     from django.conf import settings
     return render(request,'terrain/geoserver.html',{'titre':'Carte GeoServer','geo':{'url':settings.GEOSERVER_WMS_URL,'layers':settings.GEOSERVER_LAYERS}})
+
+
+
+def analyses_agent(request):
+    from django.shortcuts import get_object_or_404
+    from django.core.paginator import Paginator
+    if not str(request.GET.get('session','')).isdigit():return HttpResponse('Analyse requise',status=400)
+    session=get_object_or_404(AnalyseSession,pk=request.GET.get('session'),statut='termine')
+    agent=get_object_or_404(AgentRendement,departement=request.GET.get('departement'),code_agent=request.GET.get('agent'))
+    demandes=session.demandes.filter(departement=agent.departement,code_agent=agent.code_agent)
+    debut=request.GET.get('debut','');fin=request.GET.get('fin','')
+    try:
+        if debut:demandes=demandes.filter(d_creation__gte=date.fromisoformat(debut))
+        if fin:demandes=demandes.filter(d_creation__lte=date.fromisoformat(fin))
+    except ValueError:
+        return HttpResponse('Période invalide',status=400)
+    return render(request,'terrain/analyses_agent.html',dict(session=session,agent=agent,page=Paginator(demandes.order_by('num_demande'),50).get_page(request.GET.get('page')),nb=demandes.count(),debut=debut,fin=fin))

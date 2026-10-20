@@ -424,6 +424,7 @@ def agents_importer(request):
 
 # ── Opposition / règlement de litige ─────────────────────────────────────────
 def oppositions_liste(request):
+    from django.core.paginator import Paginator
     liste = Opposition.objects.select_related('agent')
     dept = request.GET.get('departement', '')
     statut = request.GET.get('statut', '')
@@ -437,7 +438,7 @@ def oppositions_liste(request):
         liste = liste.filter(Q(code_parcelle__icontains=recherche)
                              | Q(opposant__icontains=recherche)
                              | Q(demandeur__icontains=recherche)
-                             | Q(village__icontains=recherche))
+                             | Q(village__icontains=recherche) | Q(num_demande__icontains=recherche))
 
     if request.GET.get('export') == 'csv':
         return _export_csv('oppositions.csv',
@@ -451,7 +452,7 @@ def oppositions_liste(request):
                              o.agent.nom_complet if o.agent else ''] for o in liste])
 
     return render(request, 'terrain/oppositions.html', {
-        'oppositions': liste[:500], 'total': liste.count(),
+        'oppositions': Paginator(liste,50).get_page(request.GET.get('page')), 'total': liste.count(),
         'synthese': opp.synthese(liste),
         'statuts': Opposition.STATUTS, 'departements': DEPARTEMENTS,
         'departement': dept, 'statut': statut, 'q': recherche,
@@ -518,6 +519,11 @@ def oppositions_importer(request):
         form = ImportForm(request.POST, request.FILES)
         if form.is_valid():
             try:
+                from .oppositions_classeur import importer_classeur
+                resume=importer_classeur(form.cleaned_data['fichier'],form.cleaned_data['remplacer'])
+                if resume is not None:
+                    messages.success(request,f"{resume['dossiers']} dossiers importés ou actualisés ; les opposants multiples sont conservés.")
+                    return render(request,'terrain/oppositions_import.html',{'form':form,'resume':resume,'titre':'Importer les oppositions'})
                 df = lire_tableau(form.cleaned_data['fichier'])
             except Exception as exc:
                 messages.error(request, f'Lecture impossible : {exc}')
@@ -786,6 +792,9 @@ def carte(request):
     couches, message_couches = couches_disponibles()
     from .models import CoucheServitude
     couches += [dict(table='projet-'+c.cle,libelle=c.libelle,couleur=('#dc3545' if c.role=='deduction' else '#8e44ad'),disponible=True) for c in CoucheServitude.objects.only('cle','libelle','role')]
+    from .servitudes import ROLES
+    affichees={c['table'] for c in couches}
+    couches += [dict(table='projet-'+cle,libelle=cle.replace('_',' '),couleur='#dc3545' if role=='deduction' else '#8e44ad',disponible=False,motif='Importer le projet QGIS pour activer cette couche') for cle,role in ROLES.items() if role in ('deduction','statut') and 'projet-'+cle not in affichees]
 
     return render(request, 'terrain/carte.html', {
         'titre': 'Carte des parcelles',
@@ -805,8 +814,8 @@ def carte(request):
         'motifs': ParcelleExclue.MOTIFS,
         'couches': couches,
         'couches_json': json.dumps([
-            {'table': c['table'], 'libelle': c['libelle'], 'couleur': c['couleur']}
-            for c in couches if c.get('disponible')]),
+            {'table': c['table'], 'libelle': c['libelle'], 'couleur': c['couleur'], 'disponible': c.get('disponible',False), 'motif': c.get('motif','')}
+            for c in couches]),
         'message_couches': message_couches,
     })
 
@@ -1141,6 +1150,9 @@ def couches_configurees():
             'libelle': morceaux[2] if len(morceaux) > 2 and morceaux[2] else table,
             'couleur': morceaux[3] if len(morceaux) > 3 and morceaux[3] else '#2E75B6',
         })
+    presentes={c['table'] for c in couches}
+    for table,libelle,couleur in [('parcelle','Parcelles PostgreSQL','#E0A800'),('code_village','Code village','#7A5AA8'),('douar','Douars','#0F766E'),('secteur','Secteurs','#D97706')]:
+        if table not in presentes:couches.append(dict(table=table,colonne='shape_prcelle' if table=='parcelle' else 'geom',libelle=libelle,couleur=couleur))
     return couches
 
 

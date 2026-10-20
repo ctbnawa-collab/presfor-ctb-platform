@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Oppositions — PRESFOR CTB{% endblock %}
-{% block fil %}Registre des oppositions et litiges fonciers{% endblock %}
+{% block fil %}Suivi des dossiers · opposants · motifs · publicité{% endblock %}
 {% block actions %}
 <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-secondary"><i class="fa fa-file-csv me-1"></i>Exporter</a>
 <a href="{% url 'oppositions_importer' %}" class="btn btn-sm btn-outline-primary"><i class="fa fa-file-import me-1"></i>Importer</a>
@@ -10,11 +10,11 @@
 {% block content %}
 <div class="row g-3 mb-3">
   <div class="col-6 col-lg-2"><div class="card card-metric">
-    <div class="val">{{ synthese.total }}</div><div class="lbl">oppositions</div></div></div>
+    <div class="val">{{ synthese.total }}</div><div class="lbl">dossiers suivis</div></div></div>
   <div class="col-6 col-lg-2"><div class="card card-metric or">
-    <div class="val">{{ synthese.nb_ouvertes }}</div><div class="lbl">encore ouvertes</div></div></div>
+    <div class="val">{{ synthese.nb_ouvertes }}</div><div class="lbl">ouvertes confirmées</div></div></div>
   <div class="col-6 col-lg-2"><div class="card card-metric vert">
-    <div class="val">{{ synthese.nb_reglees }}</div><div class="lbl">réglées à l'amiable</div></div></div>
+    <div class="val">{{ synthese.nb_levees }}</div><div class="lbl">oppositions levées</div></div></div>
   <div class="col-6 col-lg-2"><div class="card card-metric bleu2">
     <div class="val">{{ synthese.taux_traitement }}%</div><div class="lbl">taux de traitement</div></div></div>
   <div class="col-6 col-lg-2"><div class="card card-metric">
@@ -41,27 +41,27 @@
   <div class="col-md-2"><button class="btn btn-primary btn-sm px-3 w-100">Filtrer</button></div>
 </form>
 
-<div class="card">
-  <div class="card-body p-0">
+<div class="alert alert-info small">{{ synthese.nb_levees }} opposition(s) levée(s) · {{ synthese.nb_sans_statut }} statut(s) non renseigné(s) · {{ synthese.nb_sans_date }} date(s) manquante(s). Les dates CEPC / EPC ne sont pas assimilées à une date de règlement.</div>
+<div class="card"><div class="card-body p-0 table-responsive">
     <table class="table table-sm tbl-sm table-hover mb-0">
-      <thead><tr><th>Parcelle</th><th>Département</th><th>Village</th><th>Demandeur</th><th>Opposant</th>
+      <thead><tr><th>Dossier / parcelle</th><th>Département</th><th>Village</th><th>Demandeur</th><th>Opposant</th>
                  <th>Type</th><th>Ouverture</th><th>Règlement</th><th class="text-end">Délai</th>
                  <th>Statut</th><th>Agent</th><th class="text-end"></th></tr></thead>
       <tbody>
       {% for o in oppositions %}
       <tr>
-        <td><code class="small">{{ o.code_parcelle|default:"—" }}</code></td>
+        <td><strong>{{ o.num_demande|default:'—' }}</strong><br><code>{{ o.code_parcelle|default:'—' }}</code><details class="mt-2"><summary>Motifs et opposants</summary><p class="small">{{ o.motif }}</p>{% if o.source_metadata.numero_atypique %}<p class="text-warning small">Numéro de dossier au format atypique, conservé tel quel.</p>{% endif %}<p>CE : {{ o.source_metadata.ce|default:'Non renseigné' }}</p><p>Superficie : {{ o.source_metadata.surface|default_if_none:"—" }} ha · levée : {{ o.source_metadata.surface_levee|default_if_none:"—" }} ha</p><p>Publicité : {{ o.source_metadata.publicite|default:'Voir détail source' }}</p><p>{{ o.source_metadata.observation|default:'' }}</p><details><summary>Fiche source du dossier</summary>{% for k,v in o.source_metadata.suivi.items %}{% if v != None and v != '' %}<div class="small"><strong>{{ k }} :</strong> {{ v }}</div>{% endif %}{% endfor %}</details>{% for d in o.source_metadata.details %}<div class="border-top py-2 small">{% for k,v in d.items %}{% if v != None and v != '' %}<div><strong>{{ k }} :</strong> {{ v }}</div>{% endif %}{% endfor %}</div>{% endfor %}</details></td>
         <td><span class="badge-dept dept-{{ o.departement }}">{{ o.departement }}</span></td>
-        <td class="small">{{ o.village|default:"—" }}</td>
+        <td class="small">{{ o.sous_prefecture|default:"—" }}<br>{{ o.village|default:"—" }}</td>
         <td class="small">{{ o.demandeur|truncatechars:22 }}</td>
         <td class="small">{{ o.opposant|truncatechars:22 }}</td>
         <td class="small text-muted">{{ o.get_type_litige_display }}</td>
-        <td class="small">{{ o.date_opposition|date:"d/m/Y" }}</td>
+        <td class="small">{{ o.date_opposition|date:"d/m/Y"|default:"Non renseignée" }}</td>
         <td class="small">{{ o.date_reglement|date:"d/m/Y"|default:"—" }}</td>
-        <td class="text-end small {% if not o.est_close and o.delai_jours > 30 %}gravite-erreur{% endif %}">{{ o.delai_jours }} j</td>
+        <td class="text-end small {% if not o.est_close and o.delai_jours > 30 %}gravite-erreur{% endif %}">{% if o.delai_jours != None %}{{ o.delai_jours }} j{% else %}—{% endif %}</td>
         <td>{% if o.est_close %}<span class="badge bg-success-subtle text-success-emphasis">{{ o.get_statut_display }}</span>
             {% else %}<span class="badge bg-warning-subtle text-warning-emphasis">{{ o.get_statut_display }}</span>{% endif %}</td>
-        <td class="small">{{ o.agent.nom_complet|default:"—" }}</td>
+        <td class="small">{% if o.agent %}{{ o.agent.nom_complet }}{% else %}{{ o.source_metadata.ce|default:"—" }}{% endif %}</td>
         <td class="text-end">
           <a href="{% url 'opposition_modifier' o.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2"><i class="fa fa-pen"></i></a>
           <a href="{% url 'opposition_supprimer' o.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2"><i class="fa fa-trash"></i></a>
@@ -77,4 +77,4 @@
     </table>
   </div>
 </div>
-{% endblock %}
+<nav class="d-flex gap-3 mt-3">{% if oppositions.has_previous %}<a href="?{{ request.GET.urlencode }}&amp;page={{ oppositions.previous_page_number }}">Précédent</a>{% endif %}<span>{{ oppositions.number }} / {{ oppositions.paginator.num_pages }} · {{ total }} dossiers</span>{% if oppositions.has_next %}<a href="?{{ request.GET.urlencode }}&amp;page={{ oppositions.next_page_number }}">Suivant</a>{% endif %}</nav>{% endblock %}
