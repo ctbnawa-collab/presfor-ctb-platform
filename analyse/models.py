@@ -203,6 +203,7 @@ class Demande(models.Model):
         choices=[('v8', 'Contrôle qualité v8'), ('plateforme', 'Calcul plateforme')])
 
     surface_postgres = models.FloatField(null=True, blank=True)
+    servitudes = models.JSONField(default=dict, blank=True)
     id_parcelle_source = models.CharField(max_length=100, blank=True)
     surface         = models.FloatField(null=True, blank=True)
     nom_agent = models.CharField(max_length=180, blank=True)

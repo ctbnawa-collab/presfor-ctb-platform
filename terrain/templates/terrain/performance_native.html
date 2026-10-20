@@ -6,6 +6,7 @@
 <a class="btn btn-sm btn-outline-secondary" href="?{{ request.GET.urlencode }}&export=agents">Exporter les agents</a>
 {% endblock %}
 {% block content %}
+<div class="alert alert-info small">Semaines du samedi au vendredi. Après import des couches du projet, les nouvelles analyses utilisent la superficie nette après servitudes ; les analyses antérieures conservent leur superficie source jusqu’à une nouvelle analyse.</div>
 <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Périodicité">
 <a class="btn {% if mode == 'journalier' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'performance_daily' %}{% if session %}?session={{ session.pk }}{% endif %}">Journalier</a>
 <a class="btn {% if mode == 'hebdomadaire' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'performance' %}{% if session %}?session={{ session.pk }}{% endif %}">Hebdomadaire</a>
@@ -18,7 +19,7 @@
 <div class="col-md-2"><label for="superviseur" class="form-label">Superviseur</label><select id="superviseur" name="superviseur" class="form-select"><option value="">Toutes les équipes</option>{% for s in superviseurs %}<option {% if s == superviseur %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div><div class="col-md-1"><button class="btn btn-primary w-100">Filtrer</button></div>
 </form>
 <div class="row g-3 mb-3">
-<div class="col-6 col-lg-3"><div class="card card-metric vert"><div class="val">{{ total.ha|floatformat:2 }}</div><div class="lbl">hectares PostgreSQL</div></div></div>
+<div class="col-6 col-lg-3"><div class="card card-metric vert"><div class="val">{{ total.ha|floatformat:2 }}</div><div class="lbl">hectares retenus</div></div></div>
 <div class="col-6 col-lg-3"><div class="card card-metric"><div class="val">{{ total.n }}</div><div class="lbl">demandes / parcelles rattachées</div></div></div>
 <div class="col-6 col-lg-3"><div class="card card-metric"><div class="val">{{ total.equipes }} / {{ total.agents }}</div><div class="lbl">équipes / agents actifs</div></div></div>
 <div class="col-6 col-lg-3"><div class="card card-metric bleu2"><div class="val">{{ total.pr }}</div><div class="lbl">PVCL et RDC terminés ensemble</div></div></div>

@@ -784,6 +784,8 @@ def carte(request):
                            .values_list('sous_prefecture', flat=True).distinct() if s)
 
     couches, message_couches = couches_disponibles()
+    from .models import CoucheServitude
+    couches += [dict(table='projet-'+c.cle,libelle=c.libelle,couleur=('#dc3545' if c.role=='deduction' else '#8e44ad'),disponible=True) for c in CoucheServitude.objects.only('cle','libelle','role')]
 
     return render(request, 'terrain/carte.html', {
         'titre': 'Carte des parcelles',
@@ -883,6 +885,8 @@ def api_parcelles(request):
               'sous_prefecture', 'village', 'titulaire', 'prenoms', 'telephone',
               'cni', 'type_certificat', 'commissaire', 'surface_ha', 'statut',
               'observation', 'id_machine')
+    from .servitudes import CalculServitudes
+    calculateur=CalculServitudes()
     for p in qs.only(*[c for c in champs if c != 'pk'])[:limite]:
         try:
             geometrie = json.loads(p.geojson)
@@ -899,6 +903,7 @@ def api_parcelles(request):
                 'telephone': p.telephone, 'cni': p.cni,
                 'type_certificat': p.type_certificat, 'commissaire': p.commissaire,
                 'surface_ha': p.surface_ha, 'statut': p.statut,
+                **calculateur.calculer(geometrie,surface_origine=p.surface_ha),
                 'observation': p.observation, 'id_machine': p.id_machine,
             },
         })

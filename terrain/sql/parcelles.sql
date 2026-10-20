@@ -27,6 +27,8 @@ WITH base AS (
     ORDER BY parcelle.id_parcelle
 )
 SELECT
+    ST_AsGeoJSON(base.geom) AS geometrie_calcul,
+    ST_SRID(base.geom) AS srid_calcul,
     base.id_parcelle,
     base.code_parcelle,
     base.code_unique,

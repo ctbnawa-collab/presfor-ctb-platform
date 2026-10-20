@@ -282,6 +282,7 @@ def upload(request):
                             mode_acquisition=row.get('mode_acquisition','')[:120],
                             photo_id=row.get('photo_id',''),
                             source_qualite=row.get('source_qualite','plateforme'),
+                            servitudes=row.get('servitudes',{}) if isinstance(row.get('servitudes'),dict) else {},
                             surface_postgres=float(row['surface_postgres']) if 'surface_postgres' in row and str(row['surface_postgres']) not in ('nan','None','') else None,
                             id_parcelle_source=str(row.get('id_parcelle_source','')),
                             surface=float(row['surface']) if 'surface' in row and str(row['surface']) not in ('nan','None','') else None,

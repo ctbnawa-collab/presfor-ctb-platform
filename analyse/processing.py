@@ -514,6 +514,9 @@ def load_parcelles_from_postgis(date_debut=None, date_fin=None):
     """
     from terrain.db import executer_fichier   # import différé : Django doit être prêt
 
+    from terrain.servitudes import CalculServitudes, TMCI
+    import json
+    calculateur=CalculServitudes()
     lignes = executer_fichier('parcelles', date_debut, date_fin)
     parcelle_map = {}
     for l in lignes:
@@ -521,6 +524,7 @@ def load_parcelles_from_postgis(date_debut=None, date_fin=None):
         if not num:
             continue
         parcelle_map.setdefault(num, []).append({
+            'servitudes': calculateur.calculer(json.loads(l['geometrie_calcul']), crs=('EPSG:'+str(l['srid_calcul']) if l.get('srid_calcul') else TMCI), surface_origine=float(l['surface_ha'])) if l.get('geometrie_calcul') and l.get('surface_ha') is not None else {},
             'code_parcelle': l.get('code_parcelle', ''),
             'surface_ha':    l.get('surface_ha'),
             'depart':        l.get('depart') or '',
@@ -826,6 +830,7 @@ def run_analyse(csv_files, parcelle_file=None, date_debut=None, date_fin=None,
         df_all['identite_agent'] = df_all.apply(lambda r: get_pfield_row(r, ['nom_agent','nom agents','ce','id_machine','code_agent']) or r.get('identite_agent',''), axis=1)
 
         if source_parcelles == 'postgis':
+            df_all['servitudes'] = df_all.apply(lambda r: (entree_de(r) or {}).get('servitudes',{}),axis=1)
             df_all['surface_postgres'] = df_all['surface']
             df_all['id_parcelle_source'] = df_all.apply(lambda r: get_pfield_row(r, ['id_parcelle']), axis=1)
 

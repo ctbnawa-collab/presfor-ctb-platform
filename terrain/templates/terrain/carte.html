@@ -35,6 +35,11 @@
 {% endblock %}
 
 {% block content %}
+{% if request.user.is_staff %}<details class="card p-3 mb-3"><summary>Charger les servitudes du projet QGIS</summary>
+<form method="post" action="{% url 'importer_servitudes' %}" enctype="multipart/form-data" class="mt-2">{% csrf_token %}
+<label>Archive ZIP du projet parcellaire <input type="file" name="projet" accept=".zip" required></label>
+<button class="btn btn-primary btn-sm">Importer les couches</button>
+<p class="small mb-0">Emprises déduites sans double comptage. PUD et zones villageoises : statuts uniquement. Les attributs personnels ne sont pas importés.</p></form></details>{% endif %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 
@@ -246,7 +251,7 @@ const CHAMPS = [
   ['telephone',      'Téléphone',       'text'],
   ['cni',            'CNI',             'text'],
   ['type_certificat', 'Type de certificat', 'text'],
-  ['surface_ha',     'Surface (ha)',    'number'],
+  ['surface_ha',     'Surface source (ha)',    'number'],
   ['departement',    'Département',     'text'],
   ['sous_prefecture', 'Sous-préfecture', 'text'],
   ['village',        'Village',         'text'],
@@ -402,7 +407,8 @@ async function chargerCoucheTerrain(table) {
   couchesChargees[table] = emprise;
   majCompteur('Chargement de la couche…');
   try {
-    const r = await fetch(`/terrain/api/couche/${table}/?bbox=${emprise}&limite=1500`);
+    const url = table.startsWith('projet-') ? `/terrain/api/servitudes/${encodeURIComponent(table.slice(7))}/?bbox=${emprise}` : `/terrain/api/couche/${table}/?bbox=${emprise}&limite=1500`;
+    const r = await fetch(url);
     const d = await r.json();
     if (d.erreur) { signaler(d.erreur, 'warning'); return; }
     groupe.clearLayers();
@@ -554,6 +560,17 @@ function ouvrirFiche(feature, couche) {
       : `<input type="${type}" ${type === 'number' ? 'step="0.0001"' : ''} data-champ="${cle}" value="${val}">`;
     return `<div class="champ-edit"><label>${lib}</label>${saisie}</div>`;
   }).join('');
+  const bilan=document.getElementById('bilan-servitudes') || document.createElement('div');
+  bilan.id='bilan-servitudes';bilan.className='alert alert-info small mt-2';
+  const lignes=[p.calcul_servitudes || 'Non calculé'];
+  if(p.surface_nette_ha!==undefined){
+    lignes.push('Surface géométrique : '+p.surface_geometrique_ha+' ha',
+      'Servitudes déduites : '+p.surface_servitude_ha+' ha',
+      'Surface nette : '+p.surface_nette_ha+' ha',
+      'Zonage : '+((p.statuts_zonage||[]).join(', ') || 'Hors PUD et zones villageoises'));
+  }
+  bilan.replaceChildren(...lignes.map(t=>{const d=document.createElement('div');d.textContent=t;return d;}));
+  document.getElementById('fiche-champs').appendChild(bilan);
   document.getElementById('etat-geometrie').innerHTML = '';
 }
 

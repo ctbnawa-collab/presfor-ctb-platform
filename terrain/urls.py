@@ -1,3 +1,4 @@
+from . import servitudes
 from django.urls import path
 from django.shortcuts import redirect
 
@@ -5,6 +6,8 @@ from . import views
 from . import performance
 
 urlpatterns = [
+    path('servitudes/importer/',servitudes.importer,name='importer_servitudes'),
+    path('api/servitudes/<str:cle>/',servitudes.couche,name='api_servitudes'),
     path('carte-geoserver/', performance.geoserver, name='carte_geoserver'),
     path('rendements/', performance.page, name='performance'),
     path('rendements/modele/', performance.model_page, name='performance_model'),

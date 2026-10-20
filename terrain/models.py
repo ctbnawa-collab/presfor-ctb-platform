@@ -305,3 +305,12 @@ class LigneRendement(models.Model):
 
 class ParametresRendement(models.Model):
     donnees = models.JSONField(default=dict)
+
+
+class CoucheServitude(models.Model):
+    cle = models.CharField(max_length=100, unique=True)
+    libelle = models.CharField(max_length=150)
+    role = models.CharField(max_length=20)  # deduction, statut, reference
+    geometries = models.JSONField(default=list)  # TMCI-5.5, mètres, sans attributs personnels
+    revision = models.CharField(max_length=64)
+    modifiee_le = models.DateTimeField(auto_now=True)

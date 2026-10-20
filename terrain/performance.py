@@ -22,16 +22,20 @@ DEFAULT={'obj':{'BUYO':150,'SOUBRE':150,'MEAGUI':300},'seuil':100}
 
 def config():
     row=ParametresRendement.objects.first()
-    return row.donnees if row else DEFAULT
+    cfg=dict(row.donnees if row else DEFAULT)
+    cfg.pop('weeks',None)
+    return cfg
 
 def calendar(cfg,until=None):
-    weeks={k:dict(k=k,s=s,e=e) for k,s,e in INITIAL}
-    weeks.update({k:dict(k=k,s=w['s'],e=w['e']) for k,w in cfg.get('weeks',{}).items()})
-    out=sorted(weeks.values(),key=lambda w:w['s'])
-    end=date.fromisoformat(out[-1]['e']);until=max(until or date.today(),date.today())+timedelta(days=7)
-    while end<until:
-        start=end+timedelta(days=1);end=start+timedelta(days=6);key=start.isoformat()+'_'+end.isoformat()
+    # Toutes les périodes, y compris historiques, suivent samedi → vendredi.
+    start=date(2026,9,12)
+    until=max(until or date.today(),date.today())+timedelta(days=7)
+    out=[]
+    while start<=until:
+        end=start+timedelta(days=6)
+        key=start.isoformat()+'_'+end.isoformat()
         out.append(dict(k=key,s=start.isoformat(),e=end.isoformat()))
+        start=end+timedelta(days=1)
     return out
 
 def contexte_rendement():
@@ -59,15 +63,17 @@ def validate(row,demande=None,contexte=None):
     agent=contexte['resolutions'][key]
     if not agent:raise ValueError(f'{n} : agent inconnu ou ambigu dans {dep}')
     ha=float(demande.surface_postgres) if settings.PRESFOR_POSTGRES_SURFACES_ONLY else float(str(row.get('ha','')).replace(',','.'))
+    if demande is not None and demande.servitudes.get('surface_nette_ha') is not None:
+        ha=float(demande.servitudes['surface_nette_ha'])
     if not math.isfinite(ha) or ha<0:raise ValueError('Superficie invalide')
     if row.get('p') not in ('c','e','t') or row.get('r') not in ('c','e','t'):raise ValueError('Statut PVCL/RDC invalide')
     weeks=contexte['weeks']
     if dt>weeks[-1]['e']:
         weeks=calendar(contexte['cfg'],date.fromisoformat(dt));contexte['weeks']=weeks
-    key=str(row.get('w',''))
+    key=''  # La semaine découle toujours de la date, samedi → vendredi.
     week=next((w for w in weeks if w['k']==key),None) if key else next((w for w in weeks if w['s']<=dt<=w['e']),None)
     if not week:raise ValueError('Semaine inconnue ou date antérieure au calendrier')
-    # Supplied model permits an explicit reporting week independent of creation date.
+    # Période de référence déduite de la date de création.
     return dict(n=n,dt=dt,w=week['k'],d=dep,a=agent['nom_agent'],s=agent['superviseur'],nom_agent=agent['nom_agent'],code_agent=agent['code_agent'],controleur=agent['controleur'],ha=ha,p=row['p'],r=row['r'])
 
 def rows_for(session_id=None,contexte=None):
@@ -76,7 +82,7 @@ def rows_for(session_id=None,contexte=None):
     session=sessions.filter(pk=session_id).first() if str(session_id or '').isdigit() else sessions.first()
     result={};issues=[];seen=set();excluded=index_exclusions()
     if session:
-        for d in session.demandes.only('session_id','num_demande','id_parcelle_source','num_parcelle','village','source_qualite','d_creation','date_creation','departement','nom_agent','code_agent','surface_postgres','statut_pvcl','statut_rdc','surface').order_by('-pk').iterator(chunk_size=500):
+        for d in session.demandes.only('session_id','num_demande','id_parcelle_source','num_parcelle','village','source_qualite','d_creation','date_creation','departement','nom_agent','code_agent','surface_postgres','servitudes','statut_pvcl','statut_rdc','surface').order_by('-pk').iterator(chunk_size=500):
             if not d.num_demande or d.num_demande in seen:continue
             seen.add(d.num_demande)
             if est_exclu(d.id_parcelle_source,d.num_parcelle,d.village,excluded):continue
@@ -89,7 +95,7 @@ def rows_for(session_id=None,contexte=None):
     saisies=list(LigneRendement.objects.all())
     if saisies:
         contexte['demandes']={}
-        for d in Demande.objects.filter(num_demande__in=[r.num_demande for r in saisies],session__statut='termine').only('num_demande','departement','surface_postgres').order_by('-session__date_creation','-pk').iterator(chunk_size=500):
+        for d in Demande.objects.filter(num_demande__in=[r.num_demande for r in saisies],session__statut='termine').only('num_demande','departement','surface_postgres','servitudes').order_by('-session__date_creation','-pk').iterator(chunk_size=500):
             contexte['demandes'].setdefault(d.num_demande,d)
     for row in saisies:
         # Explicit manual imports are stored separately and tagged, never alter quality results.
@@ -134,7 +140,7 @@ def api(request):
             for k,w in cfg.get('weeks',{}).items():
                 if len(k)>100:raise ValueError('Identifiant semaine trop long')
                 s,e=date.fromisoformat(w['s']),date.fromisoformat(w['e'])
-                if s>e:raise ValueError('Dates de semaine invalides')
+                if s.weekday()!=5 or e!=s+timedelta(days=6):raise ValueError('Une semaine doit aller du samedi au vendredi')
             candidate=calendar(cfg)
             intervals=sorted((w['s'],w['e']) for w in candidate)
             if any(a[1]>=b[0] for a,b in zip(intervals,intervals[1:])):raise ValueError('Les semaines se chevauchent')

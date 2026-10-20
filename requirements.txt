@@ -7,3 +7,6 @@ pyshp>=2.3
 gunicorn>=22
 whitenoise>=6
 dj-database-url>=2.2,<3
+
+shapely>=2,<3
+pyproj>=3.6,<4
