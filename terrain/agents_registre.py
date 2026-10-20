@@ -17,12 +17,12 @@ def fusionner_agents(referentiel, fiches):
         row=dict(fiche)
         row.update(pk=fiche.get('id'),id_machine=ref['code_agent'],nom_complet=ref['nom_agent'],
                    nom=fiche.get('nom',ref['nom_agent']),prenoms=fiche.get('prenoms',''),
-                   departement=ref['departement'],superviseur=ref.get('superviseur',''),
-                   controleur=ref.get('controleur',''),referentiel=True,actif=fiche.get('actif'))
+                   departement=ref['departement'],superviseur=fiche.get('superviseur',ref.get('superviseur','')),
+                   controleur=fiche.get('controleur',ref.get('controleur','')),referentiel=True,actif=fiche.get('actif'))
         rows.append(row)
     for fiche in fiches:
         if fiche['id'] not in utilises:
             row=dict(fiche)
-            row.update(pk=fiche['id'],nom_complet=(fiche.get('nom','')+' '+fiche.get('prenoms','')).strip(),superviseur='',controleur='',referentiel=False)
+            row.update(pk=fiche['id'],nom_complet=(fiche.get('nom','')+' '+fiche.get('prenoms','')).strip(),superviseur=fiche.get('superviseur',''),controleur=fiche.get('controleur',''),referentiel=False)
             rows.append(row)
     return sorted(rows,key=lambda r:(r['departement'],r['nom_complet']))

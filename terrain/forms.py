@@ -1,8 +1,9 @@
 from datetime import date, timedelta
 
 from django import forms
+from django.db import transaction
 
-from .models import Agent, Opposition
+from .models import Agent, AgentRendement, Opposition
 
 CTRL = {'class': 'form-control'}
 SEL = {'class': 'form-select'}
@@ -40,7 +41,7 @@ class PeriodeForm(forms.Form):
 class AgentForm(forms.ModelForm):
     class Meta:
         model = Agent
-        fields = ['id_machine', 'nom', 'prenoms', 'fonction', 'departement',
+        fields = ['id_machine', 'nom', 'prenoms', 'fonction', 'departement', 'superviseur', 'controleur',
                   'sous_prefecture', 'telephone', 'email', 'matricule',
                   'objectif_journalier', 'date_prise_service', 'actif', 'observation']
         widgets = {
@@ -48,6 +49,8 @@ class AgentForm(forms.ModelForm):
             'nom': forms.TextInput(attrs=CTRL),
             'prenoms': forms.TextInput(attrs=CTRL),
             'fonction': forms.Select(attrs=SEL),
+            'superviseur': forms.TextInput(attrs=CTRL),
+            'controleur': forms.TextInput(attrs=CTRL),
             'departement': forms.Select(attrs=SEL),
             'sous_prefecture': forms.TextInput(attrs=CTRL),
             'telephone': forms.TextInput(attrs={**CTRL, 'placeholder': '07 00 00 00 00'}),
@@ -58,6 +61,16 @@ class AgentForm(forms.ModelForm):
             'actif': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'observation': forms.Textarea(attrs={**CTRL, 'rows': 2}),
         }
+
+    def save(self, commit=True):
+        if not commit:
+            return super().save(commit=False)
+        with transaction.atomic():
+            agent = super().save()
+            AgentRendement.objects.filter(
+                departement=agent.departement, code_agent__iexact=agent.id_machine
+            ).update(superviseur=agent.superviseur, controleur=agent.controleur)
+        return agent
 
     def clean_id_machine(self):
         v = (self.cleaned_data['id_machine'] or '').strip().lower().replace(' ', '')

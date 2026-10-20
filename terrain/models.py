@@ -22,6 +22,7 @@ class Agent(models.Model):
         ('animateur',    'Animateur / sensibilisation'),
         ('opposition',   'Agent opposition / litige'),
         ('superviseur',  'Superviseur'),
+        ('controleur',   'Contrôleur'),
         ('saisie',       'Agent de saisie'),
         ('autre',        'Autre'),
     ]
@@ -32,6 +33,8 @@ class Agent(models.Model):
     prenoms      = models.CharField('Prénoms', max_length=120, blank=True)
     fonction     = models.CharField('Fonction', max_length=20, choices=FONCTIONS, default='topographe')
     departement  = models.CharField('Département', max_length=40, choices=DEPT_CHOICES, default='SOUBRE')
+    superviseur = models.CharField('Superviseur', max_length=180, blank=True)
+    controleur = models.CharField('Contrôleur', max_length=120, blank=True)
     sous_prefecture = models.CharField('Sous-préfecture', max_length=100, blank=True)
     telephone    = models.CharField('Téléphone', max_length=30, blank=True)
     email        = models.EmailField('Email', blank=True)
