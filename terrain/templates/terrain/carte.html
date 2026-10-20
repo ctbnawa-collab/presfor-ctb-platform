@@ -2,6 +2,7 @@
 {% block title %}Carte des parcelles — PRESFOR CTB{% endblock %}
 {% block fil %}Cliquez une parcelle pour la consulter, la corriger ou la masquer{% endblock %}
 {% block actions %}
+<a href="{% url 'importer_couche' %}?remplacer_pub=1" class="btn btn-sm btn-primary">Remplacer Pub globale</a>
 <a href="{% url 'importer_couche' %}" class="btn btn-sm btn-outline-primary">
   <i class="fa fa-layer-group me-1"></i>Importer une couche</a>
 <a href="{% url 'exclusions' %}" class="btn btn-sm btn-outline-secondary">
@@ -246,7 +247,9 @@ const ETENDUE = {{ etendue_json|safe }};
 const CHAMPS = [
   ['code_parcelle',  'Code parcelle',   'text'],
   ['num_demande',    'N° de demande',   'text'],
-  ['titulaire',      'Nom du titulaire', 'text'],
+  ['titulaire',      'Nom et prénom (obs)', 'text'],
+  ['code_unique',    'Code unique', 'text'],
+  ['indice_unique',  'Indice unique', 'text'],
   ['prenoms',        'Prénoms',         'text'],
   ['telephone',      'Téléphone',       'text'],
   ['cni',            'CNI',             'text'],
@@ -275,9 +278,21 @@ const fondSatLabels = L.tileLayer(
 const satellite = L.layerGroup([fondSat, fondSatLabels]);
 fondOSM.addTo(carte);
 
+function ficheParcelle(p,titre){
+  const bloc=document.createElement('div');bloc.style.fontSize='.8rem';
+  const entete=document.createElement('strong');entete.textContent=titre;bloc.appendChild(entete);
+  [['Nom et prénom',p.nom_prenom || [p.titulaire || p.nom,p.prenoms].filter(Boolean).join(' ')],
+   ['Téléphone',p.telephone],['N° de demande',p.num_demande],['Code parcelle',p.code_parcelle],
+   ['Code unique',p.code_unique || p.code_uniqu],['Indice unique',p.indice_unique || p.indice_uni],
+   ['Sous-préfecture',p.sous_prefecture],['Village',p.village]].forEach(([k,v])=>{
+     const ligne=document.createElement('div');const lib=document.createElement('strong');
+     lib.textContent=k+' : ';ligne.appendChild(lib);ligne.appendChild(document.createTextNode(v || 'Non renseigné'));bloc.appendChild(ligne);
+   });return bloc;
+}
 const couchePubliees = L.geoJSON(null, {
   style: () => ({color: '#1F4E79', weight: 1.2, fillColor: '#2E75B6', fillOpacity: .28}),
   onEachFeature: (f, l) => {
+    l.bindPopup(ficheParcelle(f.properties,'Parcelle en publicité'));
     l.on('click', () => ouvrirFiche(f, l));
     l.bindTooltip(f.properties.code_parcelle || '', {sticky: true, direction: 'top'});
   }
@@ -304,11 +319,13 @@ COUCHES_TERRAIN.forEach(c => {
       radius: 4, color: c.couleur, fillColor: c.couleur, fillOpacity: .85, weight: 1}),
     onEachFeature: (f, l) => {
       const p = f.properties || {};
-      const lignes = Object.entries(p)
-        .filter(([, v]) => v !== null && v !== '')
-        .slice(0, 8)
-        .map(([k, v]) => `<strong>${k}</strong> : ${v}`);
-      l.bindPopup(`<div style="font-size:.8rem"><div class="fw-semibold mb-1">${c.libelle}</div>${lignes.join('<br>')}</div>`);
+      if(c.table==='parcelle')l.bindPopup(ficheParcelle(p,'Parcelle PostgreSQL'));
+      else {
+        const bloc=document.createElement('div');const titre=document.createElement('strong');titre.textContent=c.libelle;bloc.appendChild(titre);
+        Object.entries(p).filter(([,v])=>v!==null && v!=='').slice(0,12).forEach(([k,v])=>{
+          const ligne=document.createElement('div');ligne.textContent=k+' : '+String(v);bloc.appendChild(ligne);
+        });l.bindPopup(bloc);
+      }
     }
   });
   couchesTerrain[c.table] = groupe;
@@ -555,9 +572,10 @@ function ouvrirFiche(feature, couche) {
   const p = feature.properties;
   document.getElementById('fiche-champs').innerHTML = CHAMPS.map(([cle, lib, type]) => {
     const val = (p[cle] ?? '').toString().replace(/"/g, '&quot;');
+    const lectureSeule=['code_unique','indice_unique'].includes(cle);
     const saisie = type === 'zone'
       ? `<textarea rows="2" data-champ="${cle}">${val}</textarea>`
-      : `<input type="${type}" ${type === 'number' ? 'step="0.0001"' : ''} data-champ="${cle}" value="${val}">`;
+      : `<input ${lectureSeule ? 'readonly' : ''} type="${type}" ${type === 'number' ? 'step="0.0001"' : ''} data-champ="${cle}" value="${val}">`;
     return `<div class="champ-edit"><label>${lib}</label>${saisie}</div>`;
   }).join('');
   const bilan=document.getElementById('bilan-servitudes') || document.createElement('div');
@@ -698,3 +716,4 @@ if (paramsUrl.get('village')) {
 chargerParcelles();
 </script>
 {% endblock %}
+

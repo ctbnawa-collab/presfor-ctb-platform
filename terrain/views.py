@@ -884,7 +884,7 @@ def api_parcelles(request):
     champs = ('pk', 'geojson', 'code_parcelle', 'num_demande', 'departement',
               'sous_prefecture', 'village', 'titulaire', 'prenoms', 'telephone',
               'cni', 'type_certificat', 'commissaire', 'surface_ha', 'statut',
-              'observation', 'id_machine')
+              'observation', 'id_machine', 'code_unique', 'indice_unique')
     from .servitudes import CalculServitudes
     calculateur=CalculServitudes()
     for p in qs.only(*[c for c in champs if c != 'pk'])[:limite]:
@@ -897,6 +897,7 @@ def api_parcelles(request):
             'geometry': geometrie,
             'properties': {
                 'pk': p.pk, 'couche': 'publiee',
+                'nom_prenom': p.nom_complet, 'code_unique': p.code_unique, 'indice_unique': p.indice_unique,
                 'code_parcelle': p.code_parcelle, 'num_demande': p.num_demande,
                 'departement': p.departement, 'sous_prefecture': p.sous_prefecture,
                 'village': p.village, 'titulaire': p.titulaire, 'prenoms': p.prenoms,
@@ -1115,7 +1116,7 @@ def importer_couche(request):
             except Exception as exc:
                 messages.error(request, f'Import interrompu : {exc}')
     else:
-        form = ImportShapefileForm()
+        form = ImportShapefileForm(initial={'couche':'publicite','remplacer':True} if request.GET.get('remplacer_pub')=='1' else None)
     return render(request, 'terrain/couche_import.html', {
         'form': form, 'resume': resume,
         'nb_publiees': ParcellePublicite.objects.count(),
@@ -1245,4 +1246,8 @@ def executer_lecture_couche(couche, colonnes, bbox, limite):
                       'date_creation', 'name_villa', 'statut', 'depart',
                       'sous-pref', 'id_borne', 'nom', 'label', 'libelle']
         colonnes = [c for c in souhaitees if c in dispo][:8]
+    if couche['table']=='parcelle':
+        from .db import lire_parcelles_carte
+        return lire_parcelles_carte(bbox,limite)
     return lire_couche(couche['table'], couche['colonne'], colonnes, bbox, limite)
+

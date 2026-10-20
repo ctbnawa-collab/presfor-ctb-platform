@@ -64,6 +64,7 @@ def importer_publicite(fichier, nom_fichier='', remplacer=False, precision=6):
             ignore += 1
             continue
 
+        nom_obs = str(attributs.get(index.get('obs'), '') or '').strip()
         obj = ParcellePublicite(
             id_parcelle=champ(attributs, ['id_parcelle', 'id_parcell',
                                           'code_unique', 'code_uniqu'], index)[:80],
@@ -71,16 +72,17 @@ def importer_publicite(fichier, nom_fichier='', remplacer=False, precision=6):
             code_norm=normaliser_code(code),
             num_demande=champ(attributs, ['num_demande', 'n de demande', 'numdemand'], index)[:60],
             departement=champ(attributs, ['departement'], index).upper()[:40],
-            sous_prefecture=champ(attributs, ['sous_prefecture', 'sousprefe'], index).upper()[:100],
+            sous_prefecture=champ(attributs, ['sous_pref', 'sous_prefecture', 'sousprefe'], index).upper()[:100],
             village=champ(attributs, ['nom_village', 'village'], index).upper()[:100],
-            titulaire=champ(attributs, ['nom digifor', 'nom', 'nom_group'], index)[:160],
-            prenoms=champ(attributs, ['prenom digifor', 'prenom'], index)[:160],
+            titulaire=(nom_obs or champ(attributs, ['nom digifor', 'nom', 'nom_group'], index))[:160],
+            prenoms=('' if nom_obs else champ(attributs, ['prenom digifor', 'prenom'], index))[:160],
             telephone=champ(attributs, ['tel', 'telephone'], index)[:40],
             cni=champ(attributs, ['cni'], index)[:60],
             type_certificat=champ(attributs, ['type', 'type_certificat'], index)[:20],
             commissaire=champ(attributs, ['ce', 'commissaire'], index)[:160],
             id_machine=champ(attributs, ['id_machine'], index)[:40],
-            code_unique=champ(attributs, ['code_unique', 'code_mix'], index)[:80],
+            code_unique=champ(attributs, ['code_unique', 'code_uniqu', 'code_mix'], index)[:80],
+            indice_unique=champ(attributs, ['indice_unique', 'indice_uni'], index)[:80],
             surface_ha=en_float(champ(attributs, ['surface (ha)', 'surface_ha', 'surface'], index)),
             date_ouverture=en_date(champ(attributs, ['date_ouverture', 'date_added'], index)),
             observation=champ(attributs, ['observation', 'obs', 'remarques'], index)[:2000],
@@ -98,6 +100,9 @@ def importer_publicite(fichier, nom_fichier='', remplacer=False, precision=6):
 
         objets.append(obj)
         cree += 1
+
+    if not objets:
+        raise ShapefileIllisible('Aucune parcelle exploitable : la couche existante est conservée.')
 
     # Identifiants déjà présents : sans « Remplacer », l'import ferait doublon.
     deja = set()

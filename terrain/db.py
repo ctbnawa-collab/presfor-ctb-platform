@@ -239,3 +239,49 @@ def bornes_dates_disponibles():
         WHERE date_creation ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}'
         """
     )[0]
+
+
+def lire_parcelles_carte(bbox=None, limite=1500):
+    """Identités et localisation spatiale, sans perdre les parcelles sans personne."""
+    params={'limite':max(1,min(int(limite),4000))}
+    where=''
+    if bbox:
+        where='WHERE p.shape_prcelle && ST_MakeEnvelope(%(x1)s,%(y1)s,%(x2)s,%(y2)s,0)'
+        params.update(zip(('x1','y1','x2','y2'),bbox))
+    sql="""
+    WITH selection AS (
+        SELECT p.* FROM parcelle p
+        {where}
+        ORDER BY p.id_parcelle LIMIT %(limite)s
+    )
+    SELECT p.id_parcelle,p.code_parcelle,p.code_unique,
+           COALESCE(to_jsonb(p)->>'indice_unique','') AS indice_unique,
+           COALESCE(to_jsonb(p)->>'num_demande',to_jsonb(p)->>'num_demand','') AS num_demande,
+           identite.nom_pers AS nom,identite.prenom_pers AS prenoms,
+           concat_ws(' ',identite.nom_pers,identite.prenom_pers) AS nom_prenom,
+           identite.telephone,
+           cv.sous_prefecture,cv.village,cv.departement,
+           ST_AsGeoJSON(p.shape_prcelle) AS geojson
+    FROM selection p
+    LEFT JOIN LATERAL (
+        SELECT personne.nom_pers,personne.prenom_pers,
+               COALESCE(NULLIF(to_jsonb(personne)->>'telephone',''),
+                        NULLIF(to_jsonb(personne)->>'tel_pers',''),
+                        NULLIF(to_jsonb(personne)->>'tel',''),
+                        to_jsonb(personne)->>'telephone_pers','') AS telephone
+        FROM ordre JOIN personne ON personne.id_personne=ordre.id_personne
+        WHERE ordre.id_parcelle=p.id_parcelle
+        ORDER BY personne.id_personne LIMIT 1
+    ) identite ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT UPPER(code_village."sous-pref") AS sous_prefecture,
+               UPPER(code_village.name_villa) AS village,
+               UPPER(code_village.depart) AS departement
+        FROM code_village
+        WHERE ST_Intersects(ST_SetSRID(code_village.geom,0),
+              ST_SetSRID(ST_PointOnSurface(p.shape_prcelle),0))
+        ORDER BY code_village.name_villa,code_village."sous-pref" LIMIT 1
+    ) cv ON TRUE
+    ORDER BY p.id_parcelle
+    """.format(where=where)
+    return executer(sql,params)

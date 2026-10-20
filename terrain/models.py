@@ -166,6 +166,7 @@ class ParcellePublicite(models.Model):
     commissaire     = models.CharField('Commissaire enquêteur', max_length=160, blank=True)
     id_machine      = models.CharField('Identifiant machine', max_length=40, blank=True)
     code_unique     = models.CharField('Code unique', max_length=80, blank=True)
+    indice_unique   = models.CharField('Indice unique', max_length=80, blank=True)
     surface_ha      = models.FloatField('Surface (ha)', null=True, blank=True)
     date_ouverture  = models.DateField('Ouverture de publicité', null=True, blank=True)
     date_cloture    = models.DateField('Clôture de publicité', null=True, blank=True)
@@ -314,3 +315,4 @@ class CoucheServitude(models.Model):
     geometries = models.JSONField(default=list)  # TMCI-5.5, mètres, sans attributs personnels
     revision = models.CharField(max_length=64)
     modifiee_le = models.DateTimeField(auto_now=True)
+
