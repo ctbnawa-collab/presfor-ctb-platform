@@ -780,10 +780,10 @@ def carte(request):
 
     couches, message_couches = couches_disponibles()
     from .models import CoucheServitude
-    couches += [dict(table='projet-'+c.cle,libelle=c.libelle,couleur=('#dc3545' if c.role=='deduction' else '#8e44ad'),disponible=True) for c in CoucheServitude.objects.only('cle','libelle','role')]
+    couches += [dict(table='projet-'+c.cle,libelle=c.libelle,role=c.role,couleur=('#dc3545' if c.role=='deduction' else '#8e44ad'),disponible=True) for c in CoucheServitude.objects.only('cle','libelle','role')]
     from .servitudes import ROLES
     affichees={c['table'] for c in couches}
-    couches += [dict(table='projet-'+cle,libelle=cle.replace('_',' '),couleur='#dc3545' if role=='deduction' else '#8e44ad',disponible=False,motif='Importer le projet QGIS pour activer cette couche') for cle,role in ROLES.items() if role in ('deduction','statut') and 'projet-'+cle not in affichees]
+    couches += [dict(table='projet-'+cle,libelle=cle.replace('_',' '),role=role,couleur='#dc3545' if role=='deduction' else '#8e44ad',disponible=False,motif='Importer le projet QGIS pour activer cette couche') for cle,role in ROLES.items() if role in ('deduction','statut') and 'projet-'+cle not in affichees]
 
     return render(request, 'terrain/carte.html', {
         'titre': 'Carte des parcelles',
@@ -803,7 +803,7 @@ def carte(request):
         'motifs': ParcelleExclue.MOTIFS,
         'couches': couches,
         'couches_json': json.dumps([
-            {'table': c['table'], 'libelle': c['libelle'], 'couleur': c['couleur'], 'disponible': c.get('disponible',False), 'motif': c.get('motif','')}
+            {'table': c['table'], 'libelle': c['libelle'], 'couleur': c['couleur'], 'disponible': c.get('disponible',False), 'role': c.get('role','reference'), 'motif': c.get('motif','')}
             for c in couches]),
         'message_couches': message_couches,
     })

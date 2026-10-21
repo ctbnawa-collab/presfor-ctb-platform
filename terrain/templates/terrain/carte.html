@@ -45,7 +45,7 @@
 .filtres-avances summary{cursor:pointer;color:#315774}
 .carte-zone{grid-template-columns:minmax(0,1fr) 300px;gap:16px}
 .carte-cadre{min-width:0;border:1px solid #dce5ed;border-radius:12px;overflow:hidden;background:white}
-.carte-entete{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #e5ecf3}
+.carte-entete{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #e5ecf3}
 .carte-entete strong{display:block;font-size:.9rem;color:#123a5e}
 .carte-entete span{display:block;font-size:.73rem;color:#607488;margin-top:3px}
 .carte-entete button{flex:none}
@@ -218,6 +218,7 @@
 <div class="carte-zone">
   <section class="carte-cadre" aria-label="Carte interactive des parcelles">
   <div class="carte-entete"><div><strong>Carte des parcelles</strong><span>Déplacez la carte, zoomez ou sélectionnez une parcelle.</span></div>
+  <button type="button" id="basculer-servitudes" class="btn btn-sm btn-outline-primary" aria-pressed="false"><i class="fa fa-layer-group me-1"></i>Afficher les servitudes</button>
   <button type="button" id="vue-generale" class="btn btn-sm btn-outline-secondary" title="Revenir à l’étendue générale"><i class="fa fa-expand me-1"></i>Vue générale</button></div>
   <div id="carte"></div></section>
 
@@ -461,6 +462,27 @@ COUCHES_TERRAIN.forEach(c => {
   const el = document.getElementById('ter-' + c.table);
   if (el) el.addEventListener('change', () => basculer(couchesTerrain[c.table], el.checked));
 });
+
+const couchesServitudes=COUCHES_TERRAIN.filter(c=>c.table.startsWith('projet-')&&c.role==='deduction'&&c.disponible);
+const boutonServitudes=document.getElementById('basculer-servitudes');
+function actualiserBoutonServitudes(){
+  const visibles=couchesServitudes.length>0&&couchesServitudes.every(c=>carte.hasLayer(couchesTerrain[c.table]));
+  boutonServitudes.disabled=!couchesServitudes.length;
+  boutonServitudes.setAttribute('aria-pressed',String(visibles));
+  boutonServitudes.textContent=!couchesServitudes.length?'Servitudes non chargées':visibles?'Masquer les servitudes':'Afficher les servitudes';
+  boutonServitudes.title=!couchesServitudes.length?'Importer le projet QGIS pour rendre les servitudes disponibles':'Afficher ou masquer toutes les couches de servitudes disponibles';
+}
+boutonServitudes.addEventListener('click',()=>{
+  const afficher=!couchesServitudes.every(c=>carte.hasLayer(couchesTerrain[c.table]));
+  couchesServitudes.forEach(c=>{
+    const choix=document.getElementById('ter-'+c.table);
+    if(choix)choix.checked=afficher;
+    basculer(couchesTerrain[c.table],afficher);
+  });
+  actualiserBoutonServitudes();
+});
+carte.on('layeradd layerremove',actualiserBoutonServitudes);
+actualiserBoutonServitudes();
 
 const parcellesPG=COUCHES_TERRAIN.find(c=>c.table==='parcelle'&&c.disponible);
 if(parcellesPG){const casePG=document.getElementById('ter-parcelle');if(casePG)casePG.checked=true;basculer(couchesTerrain.parcelle,true);}
