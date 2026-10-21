@@ -63,6 +63,15 @@
 @media(max-width:1100px){.carte-zone{grid-template-columns:minmax(0,1fr)}.parcelles-workspace .panneau{max-height:none}.parcelles-workspace #carte{height:62vh;min-height:380px}}
 @media(max-width:600px){.carte-entete{align-items:flex-start;flex-wrap:wrap}.carte-entete span{max-width:260px}.parcelles-workspace #carte{height:60dvh!important;min-height:340px!important}.parcelles-workspace .carte-indicateurs .val{font-size:1.3rem}.parcelles-workspace .panneau .card-header{position:static}}
 
+
+.statistiques-carte{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:white;border:1px solid #e0e7ef;border-radius:10px;overflow:hidden}
+.stat-carte{display:flex;align-items:center;gap:10px;padding:10px 14px;min-width:0;border-right:1px solid #e8edf3}
+.stat-carte:last-child{border-right:0;background:#f1f7fc}
+.stat-valeur{font-size:1.18rem;font-weight:750;color:#123a5e;line-height:1.2;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.stat-libelle{font-size:.73rem;color:#556b7e;line-height:1.3}
+.stat-masquees .stat-valeur{color:#ad3630}.stat-sans-geom .stat-valeur{color:#9b7100}
+@media(max-width:700px){.statistiques-carte{grid-template-columns:repeat(2,minmax(0,1fr))}.stat-carte{padding:8px 10px;gap:8px}.stat-carte:nth-child(2){border-right:0}.stat-carte:nth-child(-n+2){border-bottom:1px solid #e8edf3}.stat-valeur{font-size:1.05rem}.stat-libelle{font-size:.7rem}}
+
 {% endblock %}
 
 {% block content %}
@@ -70,16 +79,12 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 
-<div class="row g-2 mb-3 carte-indicateurs">
-  <div class="col-6 col-lg-3"><div class="card card-metric py-3">
-    <div class="val">{{ nb_visibles }}</div><div class="lbl">publicités visibles</div></div></div>
-  <div class="col-6 col-lg-3"><div class="card card-metric rouge py-3">
-    <div class="val">{{ nb_masquees }}</div><div class="lbl">masquées (à supprimer)</div></div></div>
-  <div class="col-6 col-lg-3"><div class="card card-metric or py-3">
-    <div class="val">{{ nb_sans_geometrie }}</div><div class="lbl">sans géométrie</div></div></div>
-  <div class="col-6 col-lg-3"><div class="card card-metric bleu2 py-3">
-    <div class="val" id="cpt-vue">—</div><div class="lbl">dans la vue actuelle</div></div></div>
-</div>
+<section class="statistiques-carte mb-2" aria-label="Statistiques des parcelles">
+  <div class="stat-carte"><span class="stat-valeur">{{ nb_visibles }}</span><span class="stat-libelle">Publicités visibles</span></div>
+  <div class="stat-carte stat-masquees"><span class="stat-valeur">{{ nb_masquees }}</span><span class="stat-libelle">À supprimer</span></div>
+  <div class="stat-carte stat-sans-geom"><span class="stat-valeur">{{ nb_sans_geometrie }}</span><span class="stat-libelle">Sans géométrie</span></div>
+  <div class="stat-carte stat-vue"><span class="stat-valeur" id="cpt-vue" aria-live="polite">—</span><span class="stat-libelle">Dans la vue</span></div>
+</section>
 
 <div class="filtres mb-3 recherche-carte">
   <div class="fw-semibold small mb-2"><i class="fa fa-magnifying-glass me-2"></i>Rechercher une parcelle</div>
