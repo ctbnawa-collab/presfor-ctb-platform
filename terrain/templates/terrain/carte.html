@@ -296,8 +296,16 @@ function ficheParcelle(p,titre){
      lib.textContent=k+' : ';ligne.appendChild(lib);ligne.appendChild(document.createTextNode(v || 'Non renseigné'));bloc.appendChild(ligne);
    });return bloc;
 }
+const couleursSession={};
+const CLE_COULEURS='presfor.carte.couleur.';
+function couleurParcelle(id,defaut){
+  if(couleursSession[id])return couleursSession[id];
+  try {const v=localStorage.getItem(CLE_COULEURS+id);return /^#[0-9a-f]{6}$/i.test(v||'')?v:defaut;}
+  catch(e){return defaut;}
+}
+function couleurEditable(id){return ['loc-publiees','loc-exclues','ter-parcelle'].includes(id);}
 const couchePubliees = L.geoJSON(null, {pane:'parcelles',
-  style: () => ({color: '#1F4E79', weight: 1.2, fillColor: '#2E75B6', fillOpacity: .28}),
+  style: () => ({color: couleurParcelle('loc-publiees','#1F4E79'), weight: 1.2, fillColor: couleurParcelle('loc-publiees','#2E75B6'), fillOpacity: .28}),
   onEachFeature: (f, l) => {
     l.bindPopup(ficheParcelle(f.properties,'Parcelle en publicité'));
     l.on('click', () => ouvrirFiche(f, l));
@@ -306,7 +314,7 @@ const couchePubliees = L.geoJSON(null, {pane:'parcelles',
 }).addTo(carte);
 
 const coucheExclues = L.geoJSON(null, {
-  style: () => ({color: '#C0392B', weight: 1.4, fillColor: '#C0392B',
+  style: () => ({color: couleurParcelle('loc-exclues','#C0392B'), weight: 1.4, fillColor: couleurParcelle('loc-exclues','#C0392B'),
                  fillOpacity: .3, dashArray: '4,3'}),
   onEachFeature: (f, l) => l.bindTooltip(
     `${f.properties.code_parcelle} — à supprimer (${f.properties.motif})`,
@@ -320,10 +328,10 @@ const couchesChargees = {};     // table → emprise déjà chargée
 
 COUCHES_TERRAIN.forEach(c => {
   const groupe = L.geoJSON(null, {pane:c.table==='parcelle'?'parcelles':c.table.startsWith('projet-')?'servitudes':'references',
-    style: () => ({color: c.couleur, weight: 1.4, fillColor: c.couleur,
+    style: () => ({color: c.table==='parcelle'?couleurParcelle('ter-parcelle',c.couleur):c.couleur, weight: 1.4, fillColor: c.table==='parcelle'?couleurParcelle('ter-parcelle',c.couleur):c.couleur,
                    fillOpacity: .12}),
     pointToLayer: (f, latlng) => L.circleMarker(latlng, {
-      radius: 4, color: c.couleur, fillColor: c.couleur, fillOpacity: .85, weight: 1}),
+      radius: 4, color: c.table==='parcelle'?couleurParcelle('ter-parcelle',c.couleur):c.couleur, fillColor: c.table==='parcelle'?couleurParcelle('ter-parcelle',c.couleur):c.couleur, fillOpacity: .85, weight: 1}),
     onEachFeature: (f, l) => {
       const p = f.properties || {};
       if(c.table==='parcelle')l.bindPopup(ficheParcelle(p,'Parcelle PostgreSQL'));
@@ -350,9 +358,11 @@ const COUCHES_LOCALES = [
 
 function echapperHTML(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function ligneCouche(id,libelle,couleur,actif,suffixe='',disponible=true,motif=''){
+  couleur=couleurEditable(id)?couleurParcelle(id,couleur):couleur;
   return `<div class="couche-ligne py-1" data-nom="${echapperHTML(libelle.toLowerCase())}"><div class="form-check d-flex align-items-center">
     <input class="form-check-input" type="checkbox" id="${echapperHTML(id)}" ${actif?'checked':''} ${disponible?'':'disabled'}>
-    <label class="form-check-label small ms-2" for="${echapperHTML(id)}"><span style="display:inline-block;width:13px;height:4px;background:${/^#[0-9a-f]{6}$/i.test(couleur)?couleur:'#777'};margin-right:6px"></span>${echapperHTML(libelle)} ${disponible?'':'· indisponible'}</label></div>
+    <label class="form-check-label small ms-2" for="${echapperHTML(id)}"><span data-echantillon="${echapperHTML(id)}" style="display:inline-block;width:13px;height:4px;background:${/^#[0-9a-f]{6}$/i.test(couleur)?couleur:'#777'};margin-right:6px"></span>${echapperHTML(libelle)} ${disponible?'':'· indisponible'}</label></div>
+    ${disponible&&couleurEditable(id)?`<label class="small d-flex align-items-center gap-2 ms-4">Couleur <input type="color" class="form-control form-control-color" value="${couleur}" data-couleur="${echapperHTML(id)}" aria-label="Couleur ${echapperHTML(libelle)}"></label>`:''}
     ${disponible?`<label class="small text-muted d-flex align-items-center gap-2 ms-4">Opacité <input class="form-range m-0" style="width:95px" type="range" min="0" max="1" step="0.1" value="1" data-opacite="${echapperHTML(id)}" aria-label="Opacité ${echapperHTML(libelle)}"></label>`:`<div class="small text-muted ms-4">${echapperHTML(motif || 'Couche absente de la base')}</div>`}</div>`;
 }
 document.getElementById('couches-locales').innerHTML=COUCHES_LOCALES.map(c=>ligneCouche('loc-'+c.cle,c.libelle,c.couleur,c.actif)).join('');
@@ -364,6 +374,18 @@ if(zoneTerrain){
 document.querySelectorAll('[data-opacite]').forEach(el=>el.addEventListener('input',()=>{
  const id=el.dataset.opacite;const groupe=id.startsWith('ter-')?couchesTerrain[id.slice(4)]:COUCHES_LOCALES.find(c=>'loc-'+c.cle===id)?.groupe;
  if(groupe){groupe.options.opacite=Number(el.value);groupe.setStyle({opacity:Number(el.value),fillOpacity:Number(el.value)*.2});}
+}));
+
+document.querySelectorAll('[data-couleur]').forEach(el=>el.addEventListener('input',()=>{
+  const id=el.dataset.couleur,v=el.value;
+  if(!couleurEditable(id)||!/^#[0-9a-f]{6}$/i.test(v))return;
+  couleursSession[id]=v;
+  try{localStorage.setItem(CLE_COULEURS+id,v);}catch(e){}
+  const groupe=id==='ter-parcelle'?couchesTerrain.parcelle:COUCHES_LOCALES.find(c=>'loc-'+c.cle===id)?.groupe;
+  if(groupe)groupe.setStyle({color:v,fillColor:v});
+  document.querySelectorAll('[data-echantillon]').forEach(e=>{if(e.dataset.echantillon===id)e.style.background=v;});
+  document.querySelectorAll('[data-legende]').forEach(e=>{if(e.dataset.legende===id)e.style.background=v;});
+  if(coucheActive)coucheActive.setStyle({color:'#E0A800',fillColor:'#FFC000',weight:3,fillOpacity:.4});
 }));
 
 function basculer(groupe, actif) {
@@ -456,8 +478,8 @@ function rechargerCouchesTerrain(force) {
 const legende = L.control({position: 'bottomright'});
 legende.onAdd = function () {
   const d = L.DomUtil.create('div', 'legende');
-  d.innerHTML = '<i style="background:#2E75B6"></i>Parcelle publiée<br>' +
-                '<i style="background:#C0392B"></i>À supprimer<br>' +
+  d.innerHTML = '<i data-legende="loc-publiees" style="background:'+couleurParcelle('loc-publiees','#2E75B6')+'"></i>Parcelle publiée<br>' +
+                '<i data-legende="loc-exclues" style="background:'+couleurParcelle('loc-exclues','#C0392B')+'"></i>À supprimer<br>' +
                 '<i style="background:#FFC000"></i>Sélectionnée';
   return d;
 };
