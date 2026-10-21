@@ -2,7 +2,7 @@
 {% block title %}Carte des parcelles — PRESFOR CTB{% endblock %}
 {% block fil %}Cliquez une parcelle pour la consulter, la corriger ou la masquer{% endblock %}
 {% block actions %}
-<a href="{% url 'importer_couche' %}?remplacer_pub=1" class="btn btn-sm btn-primary">Remplacer Pub globale</a>
+<a href="{% url 'importer_couche' %}?remplacer_pub=1" class="btn btn-sm btn-primary">Actualiser les publicités</a>
 <a href="{% url 'importer_couche' %}" class="btn btn-sm btn-outline-primary">
   <i class="fa fa-layer-group me-1"></i>Importer une couche</a>
 <a href="{% url 'exclusions' %}" class="btn btn-sm btn-outline-secondary">
@@ -35,20 +35,44 @@
   border-radius:0 7px 7px 0;font-size:.79rem;margin-bottom:11px;}
 @media (max-width:1100px){.carte-zone{grid-template-columns:1fr;}
   #carte{height:56vh;} .panneau{max-height:none;}}
+
+/* Organisation de l’espace cartographique */
+.parcelles-workspace .carte-indicateurs .card-metric{padding:12px!important;text-align:left;box-shadow:none;border:1px solid #e2e8f0}
+.parcelles-workspace .carte-indicateurs .val{font-size:1.5rem}
+.parcelles-workspace .carte-indicateurs .lbl{color:#526477;font-size:.76rem}
+.recherche-carte{border:1px solid #e2e8f0;box-shadow:none}
+.filtres-avances{border-top:1px solid #e6ecf2;padding-top:10px}
+.filtres-avances summary{cursor:pointer;color:#315774}
+.carte-zone{grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+.carte-cadre{min-width:0;border:1px solid #dce5ed;border-radius:12px;overflow:hidden;background:white}
+.carte-entete{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #e5ecf3}
+.carte-entete strong{display:block;font-size:.9rem;color:#123a5e}
+.carte-entete span{display:block;font-size:.73rem;color:#607488;margin-top:3px}
+.carte-entete button{flex:none}
+.parcelles-workspace #carte{height:68vh;min-height:480px;border-radius:0;box-shadow:none}
+.parcelles-workspace .panneau{max-height:calc(68vh + 72px);border-radius:12px}
+.parcelles-workspace .panneau .card{border:1px solid #dce5ed;box-shadow:none}
+.parcelles-workspace .panneau .card-header{position:sticky;top:0;z-index:2}
+.parcelles-workspace .champ-edit input,.parcelles-workspace .champ-edit textarea{padding:8px 10px;min-height:38px;background:#fff}
+.fiche-section{font-size:.74rem;color:#123a5e;font-weight:700;border-bottom:1px solid #e5ecf3;padding-bottom:7px;margin:18px 0 12px}
+.fiche-section:first-child{margin-top:0}
+.webmap-couches .dropdown-menu{border:1px solid #dce5ed;box-shadow:none!important;border-radius:12px;max-height:calc(68vh + 72px)!important;width:230px!important}
+.webmap-couches .couche-ligne{border-bottom:1px solid #f0f3f6;padding:9px 0!important}
+.webmap-couches .form-check-label{line-height:1.5}
+@media(min-width:1400px){.carte-zone:has(.webmap-couches){grid-template-columns:230px minmax(0,1fr) 290px}}
+@media(max-width:1100px){.carte-zone{grid-template-columns:minmax(0,1fr)}.parcelles-workspace .panneau{max-height:none}.parcelles-workspace #carte{height:62vh;min-height:380px}}
+@media(max-width:600px){.carte-entete{align-items:flex-start;flex-wrap:wrap}.carte-entete span{max-width:260px}.parcelles-workspace #carte{height:60dvh!important;min-height:340px!important}.parcelles-workspace .carte-indicateurs .val{font-size:1.3rem}.parcelles-workspace .panneau .card-header{position:static}}
+
 {% endblock %}
 
 {% block content %}
-{% if request.user.is_staff %}<details class="card p-3 mb-3"><summary>Charger les servitudes du projet QGIS</summary>
-<form method="post" action="{% url 'importer_servitudes' %}" enctype="multipart/form-data" class="mt-2">{% csrf_token %}
-<label>Archive ZIP du projet parcellaire <input type="file" name="projet" accept=".zip" required></label>
-<button class="btn btn-primary btn-sm">Importer les couches</button>
-<p class="small mb-0">Emprises déduites sans double comptage. PUD et zones villageoises : statuts uniquement. Les attributs personnels ne sont pas importés.</p></form></details>{% endif %}
+<div class="parcelles-workspace">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 
-<div class="row g-3 mb-3">
+<div class="row g-2 mb-3 carte-indicateurs">
   <div class="col-6 col-lg-3"><div class="card card-metric py-3">
-    <div class="val">{{ nb_visibles }}</div><div class="lbl">parcelles affichées</div></div></div>
+    <div class="val">{{ nb_visibles }}</div><div class="lbl">publicités visibles</div></div></div>
   <div class="col-6 col-lg-3"><div class="card card-metric rouge py-3">
     <div class="val">{{ nb_masquees }}</div><div class="lbl">masquées (à supprimer)</div></div></div>
   <div class="col-6 col-lg-3"><div class="card card-metric or py-3">
@@ -57,7 +81,8 @@
     <div class="val" id="cpt-vue">—</div><div class="lbl">dans la vue actuelle</div></div></div>
 </div>
 
-<div class="filtres mb-3">
+<div class="filtres mb-3 recherche-carte">
+  <div class="fw-semibold small mb-2"><i class="fa fa-magnifying-glass me-2"></i>Rechercher une parcelle</div>
   <form onsubmit="chargerParcelles(); return false">
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
@@ -91,6 +116,7 @@
       </div>
     </div>
 
+    <details class="filtres-avances mt-3"><summary class="small fw-semibold">Dates de publicité et options d’affichage</summary>
     <div class="row g-2 align-items-end mt-1">
       <div class="col-auto">
         <label class="form-label mb-1 small text-muted">
@@ -116,6 +142,7 @@
           <label class="form-check-label" for="f-auto">Recharger au déplacement</label></div>
       </div>
     </div>
+    </details>
   </form>
 </div>
 
@@ -184,14 +211,17 @@
 </div>
 
 <div class="carte-zone">
-  <div id="carte"></div>
+  <section class="carte-cadre" aria-label="Carte interactive des parcelles">
+  <div class="carte-entete"><div><strong>Carte des parcelles</strong><span>Déplacez la carte, zoomez ou sélectionnez une parcelle.</span></div>
+  <button type="button" id="vue-generale" class="btn btn-sm btn-outline-secondary" title="Revenir à l’étendue générale"><i class="fa fa-expand me-1"></i>Vue générale</button></div>
+  <div id="carte"></div></section>
 
   <div class="panneau">
     <div class="card" id="panneau-vide">
-      <div class="card-body text-center py-5">
+      <div class="card-header">Fiche parcellaire</div><div class="card-body text-center py-5">
         <i class="fa fa-hand-pointer fa-2x text-muted mb-3 d-block" style="opacity:.35"></i>
         <p class="small text-muted mb-0">
-          Cliquez une parcelle sur la carte pour afficher sa fiche,
+          Sélectionnez une parcelle pour consulter sa fiche,
           corriger ses attributs, redessiner ses limites ou la retirer de l'affichage.
         </p>
       </div>
@@ -236,6 +266,12 @@
     </div>
   </div>
 </div>
+{% if request.user.is_staff %}<details class="card p-3 mb-3"><summary>Administration · Importer les servitudes</summary>
+<form method="post" action="{% url 'importer_servitudes' %}" enctype="multipart/form-data" class="mt-2">{% csrf_token %}
+<label>Archive ZIP du projet parcellaire <input type="file" name="projet" accept=".zip" required></label>
+<button class="btn btn-primary btn-sm">Importer les couches</button>
+<p class="small mb-0">Emprises déduites sans double comptage. PUD et zones villageoises : statuts uniquement. Les attributs personnels ne sont pas importés.</p></form></details>{% endif %}
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -245,7 +281,15 @@
 const URL_PARCELLES = "{% url 'api_parcelles' %}";
 const bureau=window.matchMedia('(min-width: 1400px)');
 const gestionCouches=document.getElementById('gestion-couches');
-if(bureau.matches){const zone=document.querySelector('.carte-zone');zone.prepend(gestionCouches);gestionCouches.classList.add('webmap-couches');}
+const emplacementCouches=document.createComment('emplacement du menu des couches');
+gestionCouches.before(emplacementCouches);
+function organiserCouches(){
+  if(bureau.matches){document.querySelector('.carte-zone').prepend(gestionCouches);gestionCouches.classList.add('webmap-couches');}
+  else{emplacementCouches.after(gestionCouches);gestionCouches.classList.remove('webmap-couches');}
+  requestAnimationFrame(()=>{if(typeof carte!=='undefined')carte.invalidateSize();});
+}
+organiserCouches();
+bureau.addEventListener('change',organiserCouches);
 const CSRF = "{{ csrf_token }}";
 const ETENDUE = {{ etendue_json|safe }};
 
@@ -272,6 +316,7 @@ const carte = L.map('carte', {preferCanvas: true});
 L.control.scale({imperial:false,position:'bottomleft'}).addTo(carte);
 ['references','servitudes','parcelles'].forEach((nom,i)=>{carte.createPane(nom);carte.getPane(nom).style.zIndex=String(410+i*10);});
 carte.fitBounds([[ETENDUE.latMin, ETENDUE.lonMin], [ETENDUE.latMax, ETENDUE.lonMax]]);
+document.getElementById('vue-generale').addEventListener('click',()=>carte.fitBounds([[ETENDUE.latMin,ETENDUE.lonMin],[ETENDUE.latMax,ETENDUE.lonMax]]));
 
 const fondOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19, attribution: '&copy; OpenStreetMap'});
@@ -606,7 +651,8 @@ function ouvrirFiche(feature, couche) {
     const saisie = type === 'zone'
       ? `<textarea rows="2" data-champ="${cle}">${val}</textarea>`
       : `<input ${lectureSeule ? 'readonly' : ''} type="${type}" ${type === 'number' ? 'step="0.0001"' : ''} data-champ="${cle}" value="${val}">`;
-    return `<div class="champ-edit"><label>${lib}</label>${saisie}</div>`;
+    const sections={code_parcelle:'Identification',titulaire:'Titulaire et coordonnées',surface_ha:'Superficie',departement:'Localisation et suivi',observation:'Observations'};
+    return (sections[cle] ? '<h2 class="fiche-section">'+sections[cle]+'</h2>' : '')+`<div class="champ-edit"><label>${lib}</label>${saisie}</div>`;
   }).join('');
   const bilan=document.getElementById('bilan-servitudes') || document.createElement('div');
   bilan.id='bilan-servitudes';bilan.className='alert alert-info small mt-2';
