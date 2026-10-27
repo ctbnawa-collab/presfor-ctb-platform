@@ -1,6 +1,7 @@
 """Synthèses d'équipe ; critères identiques au modèle hebdomadaire fourni."""
 from collections import defaultdict
 from datetime import date, timedelta
+from .parcelles_count import compter_parcelles
 
 
 def primes_equipes(rows, cfg, weeks, today=None):
@@ -8,7 +9,7 @@ def primes_equipes(rows, cfg, weeks, today=None):
     groups = defaultdict(dict)
     for row in rows:
         agents = groups[(row['w'], row['d'], row['s'])]
-        agent = agents.setdefault(row['a'], dict(ha=0, n=0, pt=0, rt=0))
+        agent = agents.setdefault(row.get('code_agent') or row['a'], dict(ha=0, n=0, pt=0, rt=0))
         agent['ha'] += float(row['ha'])
         agent['n'] += 1
         agent['pt'] += row['p'] == 't'
@@ -40,15 +41,24 @@ def regrouper_equipes(rows, primes):
     groups = {}
     for row in rows:
         key = (row['d'], row['s'])
-        team = groups.setdefault(key, dict(d=key[0], s=key[1], ha=0, n=0, pt=0, rt=0, pr=0, agents=set(), semaines=set()))
+        team = groups.setdefault(key, dict(d=key[0], s=key[1], ha=0, n=0, pt=0, rt=0, pr=0, agents=set(), semaines=set(), parcelles=[]))
         team['ha'] += float(row['ha'])
         team['n'] += 1
         team['pt'] += row['p'] == 't'
         team['rt'] += row['r'] == 't'
         team['pr'] += row['p'] == 't' and row['r'] == 't'
-        team['agents'].add(row['a'])
+        team['agents'].add(row.get('code_agent') or row['a'])
+        team['parcelles'].append(row)
         team['semaines'].add(row['w'])
     for team in groups.values():
         team['effectif'] = len(team.pop('agents'))
+        team['nb_parcelles'] = compter_parcelles(team.pop('parcelles'))
         team['primes'] = [primes[(w, team['d'], team['s'])] for w in sorted(team.pop('semaines'))]
-    return sorted(groups.values(), key=lambda t: (t['d'], -t['ha'], t['s']))
+    teams = sorted(groups.values(), key=lambda t: (t['d'], -t['ha'], t['s']))
+    max_dep = {}
+    for team in teams:
+        max_dep[team['d']] = max(max_dep.get(team['d'], 0), round(team['ha'], 2))
+    for team in teams:
+        score = round(team['ha'], 2)
+        team['meilleure_performance'] = score > 0 and score == max_dep[team['d']]
+    return teams

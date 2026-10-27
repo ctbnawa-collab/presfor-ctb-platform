@@ -5,8 +5,16 @@
 <a class="btn btn-sm btn-outline-primary" href="?{{ request.GET.urlencode }}&export=csv">Exporter les équipes</a>
 <a class="btn btn-sm btn-outline-secondary" href="?{{ request.GET.urlencode }}&export=agents">Exporter les agents</a>
 {% endblock %}
+{% block extra_css %}
+.equipe-detail{background:#fff;border-color:#dce5ed!important}
+.equipe-resume{display:grid;grid-template-columns:minmax(170px,1.5fr) minmax(130px,1fr) minmax(160px,1fr) auto;align-items:center;gap:12px;cursor:pointer;list-style:none}
+.equipe-resume::-webkit-details-marker{display:none}.equipe-resume:hover{background:#f5f9fc}
+.equipe-score,.equipe-primes{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.equipe-score strong{color:#347d37;font-size:1.15rem}.equipe-primes small{display:block;width:100%;color:#64798a}.equipe-ouverture{color:#24618e;font-size:.8rem}
+@media(max-width:800px){.equipe-resume{grid-template-columns:1fr 1fr}.equipe-ouverture{grid-column:1/-1}.equipe-primes{align-self:start}}
+@media(max-width:420px){.equipe-resume{grid-template-columns:1fr}.equipe-ouverture{grid-column:auto}}
+{% endblock %}
 {% block content %}
-<div class="alert alert-info small">Les rendements proviennent uniquement des analyses CSV terminées. Cliquez sur un agent pour consulter ses dossiers et observations. Le nombre de parcelles compte les identifiants PostgreSQL distincts ; à défaut, le code avec village et département. Les demandes sans parcelle identifiable ne sont pas comptées comme parcelles. Semaines du samedi au vendredi. Après import des couches du projet, les nouvelles analyses utilisent la superficie nette après servitudes ; les analyses antérieures conservent leur superficie source jusqu’à une nouvelle analyse.</div>
+<div class="alert alert-info small">Les rendements proviennent uniquement des analyses CSV terminées. Cliquez sur un agent pour consulter ses dossiers et observations. L’équipe ayant la superficie cumulée la plus élevée dans chaque département est indiquée ; les égalités sont conservées. Une parcelle figurant dans plusieurs demandes peut encore être comptée plusieurs fois dans les hectares : vérifier les doublons avant de valider une prime. Le nombre de parcelles compte les identifiants PostgreSQL distincts ; à défaut, le code avec village et département. Les demandes sans parcelle identifiable ne sont pas comptées comme parcelles. Semaines du samedi au vendredi. Après import des couches du projet, les nouvelles analyses utilisent la superficie nette après servitudes ; les analyses antérieures conservent leur superficie source jusqu’à une nouvelle analyse.</div>
 <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Périodicité">
 <a class="btn {% if mode == 'journalier' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'performance_daily' %}{% if session %}?session={{ session.pk }}{% endif %}">Journalier</a>
 <a class="btn {% if mode == 'hebdomadaire' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'performance' %}{% if session %}?session={{ session.pk }}{% endif %}">Hebdomadaire</a>
@@ -20,20 +28,46 @@
 </form>
 <div class="row g-3 mb-3">
 <div class="col-6 col-lg-3"><div class="card card-metric vert"><div class="val">{{ total.ha|floatformat:2 }}</div><div class="lbl">hectares retenus</div></div></div>
-<div class="col-6 col-lg-3"><div class="card card-metric"><div class="val">{{ total.n }}</div><div class="lbl">demandes / parcelles rattachées</div></div></div>
+<div class="col-6 col-lg-3"><div class="card card-metric"><div class="val">{{ total.n }}</div><div class="lbl">demandes analysées</div></div></div>
 <div class="col-6 col-lg-3"><div class="card card-metric"><div class="val">{{ total.equipes }} / {{ total.agents }}</div><div class="lbl">équipes / agents actifs</div></div></div>
 <div class="col-6 col-lg-3"><div class="card card-metric bleu2"><div class="val">{{ total.pr }}</div><div class="lbl">PVCL et RDC terminés ensemble</div></div></div>
 </div>
 {% if equipes %}
 <div class="row g-3 mb-3"><div class="col-lg-6"><div class="card"><div class="card-header">Classement des équipes par superficie</div><div class="card-body" style="height:{{ graph_height }}px"><canvas id="graph-equipes" role="img" aria-label="Superficie et nombre de parcelles par équipe"></canvas></div></div></div><div class="col-lg-6"><div class="card"><div class="card-header">Production sur la période</div><div class="card-body" style="height:420px"><canvas id="graph-production" role="img" aria-label="Évolution des superficies et du nombre de parcelles"></canvas></div></div></div></div>
 {% endif %}
-<p class="small text-muted">Les primes sont hebdomadaires : leur statut utilise la semaine complète, même dans les vues journalière et mensuelle. Les objectifs et le délai S+1 du modèle sont conservés. Aucun montant ni paiement n’est créé. L’effectif de référence reste celui des agents ayant des demandes dans la semaine.</p>
+<p class="small text-muted">La prime d’équipe est calculée par semaine complète, du samedi au vendredi, y compris dans les vues journalière et mensuelle. L’objectif affiché correspond à l’objectif hebdomadaire par agent multiplié par le nombre d’agents actifs ; l’éligibilité dépend aussi des PVCL et RDC terminés et du seuil configuré. Aucun montant n’est calculé. Cliquez sur une équipe, puis sur un agent pour consulter ses dossiers.</p>
 {% regroup equipes by d as departements_equipes %}
 {% for dep in departements_equipes %}
-<section class="card mb-3"><div class="card-header">{{ dep.grouper }} — équipes classées par superficie</div><div class="table-responsive"><table class="table tbl-sm mb-0"><thead><tr><th>Superviseur</th><th>Noms des agents</th><th>Superficie (ha)</th><th>Demandes</th><th>PVCL terminés</th><th>RDC terminés</th><th>Les deux terminés</th><th>Ratio complet</th><th>Primes de l’équipe</th></tr></thead><tbody>
-{% for t in dep.list %}<tr><td><strong>{{ t.s }}</strong></td><td><div class="small text-muted mb-1">{{ t.effectif }} agent(s)</div>{% for a in t.detail_agents %}<div class="mb-1"><a href="{% url 'analyses_agent' %}?session={{ session.pk }}&amp;departement={{ a.d|urlencode }}&amp;agent={{ a.code_agent|urlencode }}&amp;debut={{ date_debut|date:'Y-m-d' }}&amp;fin={{ date_fin|date:'Y-m-d' }}">{{ a.a }}</a></div>{% empty %}<span class="text-muted">Aucun agent identifié</span>{% endfor %}</td><td class="text-success fw-bold">{{ t.ha|floatformat:2 }}</td><td>{{ t.n }}</td><td>{{ t.pt }}</td><td>{{ t.rt }}</td><td>{{ t.pr }}</td><td>{{ t.ratio }} %</td><td>{% for p in t.primes %}<div class="mb-2"><small>{{ p.debut }} → {{ p.fin }}</small><br><strong class="{% if p.eligible %}text-success{% else %}text-muted{% endif %}">{{ p.statut }}</strong><br><small>{{ p.agents_primes }} agent(s) éligible(s) · objectif {{ p.objectif|floatformat:0 }} ha · échéance {{ p.echeance|date:'d/m/Y' }}</small></div>{% endfor %}</td></tr>{% endfor %}
-</tbody></table></div>
-{% for t in dep.list %}<details open class="p-3 border-top"><summary>Agents de l’équipe {{ t.s }} · {{ t.effectif }} agent(s)</summary><div class="table-responsive mt-2"><table class="table tbl-sm"><thead><tr><th>Nom et prénom de l’agent</th><th>Superficie (ha)</th><th>Nombre de parcelles</th><th>Demandes</th><th>PVCL terminés</th><th>RDC terminés</th><th>Les deux terminés</th></tr></thead><tbody>{% for a in t.detail_agents %}<tr><td><a href="{% url 'analyses_agent' %}?session={{ session.pk }}&amp;departement={{ a.d|urlencode }}&amp;agent={{ a.code_agent|urlencode }}&amp;debut={{ date_debut|date:'Y-m-d' }}&amp;fin={{ date_fin|date:'Y-m-d' }}">{{ a.a }}</a></td><td>{{ a.ha|floatformat:2 }}</td><td class="fw-bold">{{ a.nb_parcelles }}</td><td>{{ a.n }}</td><td>{{ a.pt }}</td><td>{{ a.rt }}</td><td>{{ a.pr }}</td></tr>{% endfor %}</tbody></table></div></details>{% endfor %}</section>
+<section class="card mb-3">
+  <div class="card-header">{{ dep.grouper }} <span class="small text-muted">· {{ dep.list|length }} équipe(s) · classées par superficie</span></div>
+  <div class="p-3">
+    {% for t in dep.list %}
+    <details class="equipe-detail border rounded mb-2">
+      <summary class="equipe-resume p-3">
+        <span><strong>Équipe {{ t.s }}</strong><small class="d-block text-muted">{{ t.effectif }} agent(s) · {{ t.nb_parcelles }} parcelle(s) · {{ t.n }} demande(s)</small></span>
+        <span class="equipe-score"><strong>{{ t.ha|floatformat:2 }} ha</strong>{% if t.meilleure_performance %}<span class="badge bg-primary">Meilleure superficie du département</span>{% endif %}</span>
+        <span class="equipe-primes"><small>Prime hebdomadaire</small>{% for p in t.primes %}<span class="badge {% if p.eligible %}bg-success{% else %}bg-secondary{% endif %}">{{ p.statut }}</span>{% empty %}<span>Non renseignée</span>{% endfor %}</span>
+        <span class="equipe-ouverture">Voir le détail ▾</span>
+      </summary>
+      <div class="p-3 border-top">
+        <div class="row g-2 mb-3">
+          <div class="col-6 col-lg-3"><strong>{{ t.pt }}</strong><div class="small text-muted">PVCL terminés</div></div>
+          <div class="col-6 col-lg-3"><strong>{{ t.rt }}</strong><div class="small text-muted">RDC terminés</div></div>
+          <div class="col-6 col-lg-3"><strong>{{ t.pr }}</strong><div class="small text-muted">PVCL et RDC terminés</div></div>
+          <div class="col-6 col-lg-3"><strong>{{ t.ratio }} %</strong><div class="small text-muted">Dossiers complets</div></div>
+        </div>
+        <div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th>Semaine de prime</th><th>Objectif équipe</th><th>Agents éligibles</th><th>Statut</th><th>Échéance S+1</th></tr></thead><tbody>
+        {% for prime in t.primes %}<tr><td>{{ prime.debut }} → {{ prime.fin }}</td><td>{{ prime.objectif|floatformat:2 }} ha</td><td>{{ prime.agents_primes }} / {{ prime.effectif }}</td><td><strong class="{% if prime.eligible %}text-success{% endif %}">{{ prime.statut }}</strong></td><td>{{ prime.echeance|date:'d/m/Y' }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        <h3 class="h6 mt-3">Rendement par agent</h3>
+        <div class="table-responsive"><table class="table tbl-sm mb-0"><thead><tr><th>Agent</th><th>Superficie (ha)</th><th>Parcelles</th><th>Demandes</th><th>PVCL terminés</th><th>RDC terminés</th><th>Les deux terminés</th><th>Dossiers</th></tr></thead><tbody>
+        {% for agent in t.detail_agents %}<tr><td><a href="{% url 'analyses_agent' %}?session={{ session.pk }}&amp;departement={{ agent.d|urlencode }}&amp;agent={{ agent.code_agent|urlencode }}&amp;debut={{ date_debut|date:'Y-m-d' }}&amp;fin={{ date_fin|date:'Y-m-d' }}">{{ agent.a }}</a></td><td>{{ agent.ha|floatformat:2 }}</td><td>{{ agent.nb_parcelles }}</td><td>{{ agent.n }}</td><td>{{ agent.pt }}</td><td>{{ agent.rt }}</td><td>{{ agent.pr }}</td><td><a class="btn btn-sm btn-outline-primary" href="{% url 'analyses_agent' %}?session={{ session.pk }}&amp;departement={{ agent.d|urlencode }}&amp;agent={{ agent.code_agent|urlencode }}&amp;debut={{ date_debut|date:'Y-m-d' }}&amp;fin={{ date_fin|date:'Y-m-d' }}">Voir les analyses</a></td></tr>{% empty %}<tr><td colspan="8">Aucun agent identifié.</td></tr>{% endfor %}
+        </tbody></table></div>
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+</section>
 {% empty %}<div class="card p-4 mb-3">Aucune demande exploitable pour ce filtre. Sélectionnez une analyse terminée et une période comportant des demandes.</div>{% endfor %}
 {% if nb_issues %}<details class="alert alert-warning"><summary>{{ nb_issues }} demande(s) non comptabilisée(s)</summary>{% for issue in issues %}<p class="mb-1 small">{{ issue }}</p>{% endfor %}{% if nb_issues > 30 %}<p class="small">30 premiers motifs affichés.</p>{% endif %}</details>{% endif %}
 <details class="card p-3 mt-3"><summary>Objectifs et règles de prime</summary><p class="small mt-2">Objectif en hectares par agent et par semaine. Le seuil du superviseur correspond à la part de ses agents atteignant chaque critère : superficie, PVCL soldés et RDC soldés.</p><form id="config-rendement" class="row g-2">{% csrf_token %}

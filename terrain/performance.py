@@ -91,7 +91,7 @@ def rows_for(session_id=None,contexte=None):
             dt=d.d_creation or en_date(d.date_creation)
             try:
                 row=validate(dict(n=d.num_demande,dt=dt.isoformat() if dt else '',d=d.departement,a=d.nom_agent or d.code_agent,ha=d.surface,p='t' if d.statut_pvcl=='Pvcl terminé' else 'e' if 'cours' in d.statut_pvcl else 'c',r='t' if d.statut_rdc=='RDC terminé' else 'e' if 'cours' in d.statut_rdc else 'c'),demande=d,contexte=contexte)
-                row.update(source='controle_qualite_8.3',id_parcelle=d.id_parcelle_source,code_parcelle=d.num_parcelle,village=d.village);result[row['n']]=row
+                row.update(demande_pk=d.pk,source='controle_qualite_8.3',id_parcelle=d.id_parcelle_source,code_parcelle=d.num_parcelle,village=d.village);result[row['n']]=row
             except (ValueError,TypeError) as exc:issues.append(f'{d.num_demande} : {exc}')
     return list(result.values()),issues,session
 
@@ -167,19 +167,21 @@ def periodic(request,mode='journalier'):
         periode=chosen.isoformat() if mode=='journalier' else chosen.strftime('%Y-%m')
         selection=[r for r in data if start.isoformat()<=r['dt']<=end.isoformat()]
     primes=primes_equipes(data,cfg,weeks)
+    meilleurs={(t['d'],t['s']):t['meilleure_performance'] for t in regrouper_equipes(selection,primes)}
     departement=request.GET.get('departement','')
     superviseur=request.GET.get('superviseur','')
     selection=[r for r in selection if (not departement or r['d']==departement) and (not superviseur or r['s']==superviseur)]
     equipes=regrouper_equipes(selection,primes)
     groups={};daily={}
     for row in selection:
-        k=(row['d'],row['s'],row['a']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=k[2],code_agent=row['code_agent'],ha=0,n=0,pt=0,rt=0,pr=0,parcelles=[]))
+        k=(row['d'],row['s'],row['code_agent']);g=groups.setdefault(k,dict(d=k[0],s=k[1],a=row['a'],code_agent=row['code_agent'],ha=0,n=0,pt=0,rt=0,pr=0,parcelles=[]))
         g['parcelles'].append(row)
         g['ha']+=row['ha'];g['n']+=1;g['pt']+=row['p']=='t';g['rt']+=row['r']=='t';g['pr']+=row['p']=='t' and row['r']=='t'
-        day=daily.setdefault(row['dt'],dict(ha=0,n=0));day['ha']+=row['ha'];day['n']+=1
+        day=daily.setdefault(row['dt'],dict(ha=0,parcelles=[]));day['ha']+=row['ha'];day['parcelles'].append(row)
     for g in groups.values():g['nb_parcelles']=compter_parcelles(g.pop('parcelles'))
     rows=sorted(groups.values(),key=lambda r:(r['d'],r['s'],-r['ha'],r['a']))
     for team in equipes:
+        team['meilleure_performance']=meilleurs.get((team['d'],team['s']),False)
         team['detail_agents']=[r for r in rows if r['d']==team['d'] and r['s']==team['s']]
         team['ratio']=round(team['pr']/team['n']*100,1) if team['n'] else 0
     if request.GET.get('export'):
@@ -188,12 +190,12 @@ def periodic(request,mode='journalier'):
             w.writerow(['Département','Superviseur','nom_agent','Superficie (ha)','Nombre de parcelles','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés'])
             for r in rows:w.writerow([r[k] for k in ('d','s','a','ha','nb_parcelles','n','pt','rt','pr')])
         else:
-            w.writerow(['Département','Équipe du superviseur','Agents actifs','Superficie (ha)','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés','Primes hebdomadaires'])
-            for r in equipes:w.writerow([r[k] for k in ('d','s','effectif','ha','n','pt','rt','pr')]+[' ; '.join(p['debut']+' au '+p['fin']+' : '+p['statut'] for p in r['primes'])])
+            w.writerow(['Département','Équipe du superviseur','Agents actifs','Superficie (ha)','Nombre de parcelles','Demandes','PVCL terminés','RDC terminés','PVCL et RDC terminés','Primes hebdomadaires'])
+            for r in equipes:w.writerow([r[k] for k in ('d','s','effectif','ha','nb_parcelles','n','pt','rt','pr')]+[' ; '.join(p['debut']+' au '+p['fin']+' : '+p['statut'] for p in r['primes'])])
         return response
     total=dict(ha=round(sum(t['ha'] for t in equipes),2),n=len(selection),equipes=len(equipes),agents=len(rows),pr=sum(t['pr'] for t in equipes))
     chart_teams=sorted(equipes,key=lambda t:-t['ha'])[:15]
-    graph=dict(noms=[t['s']+' · '+t['d'] for t in chart_teams],ha=[round(t['ha'],2) for t in chart_teams],n=[t['n'] for t in chart_teams],jours=sorted(daily),jour_ha=[round(daily[d]['ha'],2) for d in sorted(daily)],jour_n=[daily[d]['n'] for d in sorted(daily)])
+    graph=dict(noms=[t['s']+' · '+t['d'] for t in chart_teams],ha=[round(t['ha'],2) for t in chart_teams],n=[t['nb_parcelles'] for t in chart_teams],jours=sorted(daily),jour_ha=[round(daily[d]['ha'],2) for d in sorted(daily)],jour_n=[compter_parcelles(daily[d]['parcelles']) for d in sorted(daily)])
     return render(request,'terrain/performance_native.html',dict(titre='Rendement '+mode,mode=mode,equipes=equipes,periode=periode,options=options,rows=rows,issues=issues[:30],nb_issues=len(issues),sessions=AnalyseSession.objects.filter(statut='termine'),session=session,total=total,graph=graph,graph_height=max(420,len(chart_teams)*44+100),cfg=cfg,departement=departement,superviseur=superviseur,superviseurs=sorted({r['s'] for r in data if not departement or r['d']==departement}),date_debut=start,date_fin=end))
 
 
@@ -213,11 +215,15 @@ def analyses_agent(request):
     if not str(request.GET.get('session','')).isdigit():return HttpResponse('Analyse requise',status=400)
     session=get_object_or_404(AnalyseSession,pk=request.GET.get('session'),statut='termine')
     agent=get_object_or_404(AgentRendement,departement=request.GET.get('departement'),code_agent=request.GET.get('agent'))
-    demandes=session.demandes.filter(departement=agent.departement,code_agent=agent.code_agent)
     debut=request.GET.get('debut','');fin=request.GET.get('fin','')
     try:
-        if debut:demandes=demandes.filter(d_creation__gte=date.fromisoformat(debut))
-        if fin:demandes=demandes.filter(d_creation__lte=date.fromisoformat(fin))
+        if debut: date.fromisoformat(debut)
+        if fin: date.fromisoformat(fin)
+        if debut and fin and debut>fin: raise ValueError()
     except ValueError:
         return HttpResponse('Période invalide',status=400)
+    rows,_,_=rows_for(session.pk)
+    ids=[r['demande_pk'] for r in rows if r['d']==agent.departement and r['code_agent']==agent.code_agent
+         and (not debut or r['dt']>=debut) and (not fin or r['dt']<=fin)]
+    demandes=session.demandes.filter(pk__in=ids)
     return render(request,'terrain/analyses_agent.html',dict(session=session,agent=agent,page=Paginator(demandes.order_by('num_demande'),50).get_page(request.GET.get('page')),nb=demandes.count(),debut=debut,fin=fin))
