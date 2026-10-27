@@ -72,6 +72,27 @@
 .stat-masquees .stat-valeur{color:#ad3630}.stat-sans-geom .stat-valeur{color:#9b7100}
 @media(max-width:700px){.statistiques-carte{grid-template-columns:repeat(2,minmax(0,1fr))}.stat-carte{padding:8px 10px;gap:8px}.stat-carte:nth-child(2){border-right:0}.stat-carte:nth-child(-n+2){border-bottom:1px solid #e8edf3}.stat-valeur{font-size:1.05rem}.stat-libelle{font-size:.7rem}}
 
+
+/* Disposition centrée sur la carte : commandes regroupées à gauche */
+.carte-zone,.carte-zone:has(.webmap-couches){display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start}
+.carte-volet{min-width:0;background:#fff;border:1px solid #dce5ed;border-radius:12px;max-height:calc(100vh - 150px);overflow:auto}
+.volet-intro{padding:16px;border-bottom:1px solid #e8edf3}.volet-intro strong,.volet-intro span{display:block}.volet-intro strong{color:#123a5e}.volet-intro span{color:#607488;font-size:.75rem;margin-top:5px}
+.volet-section{border-bottom:1px solid #e8edf3}.volet-section>summary{padding:13px 15px;color:#254763;font-weight:650;font-size:.84rem;cursor:pointer}.volet-section>summary i,.couches-titre i{width:20px;color:#3975a4}
+.volet-form{padding:0 15px 14px}.volet-form>label:not(.form-check){display:block;margin:10px 0 4px;color:#5a6d7c;font-size:.75rem}.volet-form .form-check{display:block;margin-top:12px;font-size:.77rem}
+.couches-titre{padding:14px 15px 4px;color:#254763;font-size:.84rem;font-weight:650}
+.carte-volet .webmap-couches>.dropdown-menu{width:auto!important;max-height:none!important;border:0!important;border-radius:0!important}
+.carte-volet .webmap-couches #couches-terrain{max-height:none!important}
+.carte-volet .statistiques-carte{grid-template-columns:1fr 1fr;margin:0 12px 12px!important}
+.carte-volet .stat-carte{padding:9px;border-right:1px solid #e8edf3;border-bottom:1px solid #e8edf3}.carte-volet .stat-carte:nth-child(2n){border-right:0}.carte-volet .stat-carte:nth-child(n+3){border-bottom:0}
+.carte-volet .panneau{max-height:none!important;padding:10px}.carte-volet .panneau .card-header{position:static}
+.carte-entete{display:grid;grid-template-columns:minmax(150px,1fr) minmax(260px,2fr) auto;align-items:center;gap:12px}
+.recherche-centree{display:flex;justify-self:center;width:100%;max-width:650px;gap:6px;margin:0}.recherche-centree input{min-width:0;flex:1}.recherche-centree button span{margin-left:7px}
+.carte-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.parcelles-workspace #carte{height:72vh;min-height:480px}
+@media(max-width:1400px){.carte-entete{grid-template-columns:1fr 1.6fr}.carte-actions{grid-column:1/-1;justify-content:flex-end}}
+@media(max-width:1100px){.carte-volet .panneau:has(#panneau-fiche.d-none){display:none}.carte-zone,.carte-zone:has(.webmap-couches){grid-template-columns:minmax(0,1fr)}.carte-volet{max-height:none}.carte-volet .dropdown{padding:8px 15px}.carte-volet .panneau{padding:8px 15px}.carte-entete{grid-template-columns:1fr}.carte-actions{grid-column:auto;justify-content:flex-start}.parcelles-workspace #carte{height:62vh;min-height:360px}}
+@media(max-width:600px){.recherche-centree button span{display:none}.recherche-centree button{min-width:44px}.carte-entete{padding:10px}.parcelles-workspace #carte{height:60dvh!important;min-height:340px!important}}
+
 {% endblock %}
 
 {% block content %}
@@ -79,81 +100,33 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 
-<section class="statistiques-carte mb-2" aria-label="Statistiques des parcelles">
+<div class="carte-zone">
+  <aside class="carte-volet" aria-label="Commandes de la carte">
+    <div class="volet-intro"><strong>Explorer la carte</strong><span>Choisissez les couches et affinez votre recherche.</span></div>
+    <details class="volet-section stats-onglet">
+      <summary><i class="fa fa-chart-column" aria-hidden="true"></i> Statistiques</summary>
+      <section class="statistiques-carte mb-2" aria-label="Statistiques des parcelles">
   <div class="stat-carte"><span class="stat-valeur">{{ nb_visibles }}</span><span class="stat-libelle">Publicités visibles</span></div>
   <div class="stat-carte stat-masquees"><span class="stat-valeur">{{ nb_masquees }}</span><span class="stat-libelle">À supprimer</span></div>
   <div class="stat-carte stat-sans-geom"><span class="stat-valeur">{{ nb_sans_geometrie }}</span><span class="stat-libelle">Sans géométrie</span></div>
   <div class="stat-carte stat-vue"><span class="stat-valeur" id="cpt-vue" aria-live="polite">—</span><span class="stat-libelle">Dans la vue</span></div>
 </section>
-
-<div class="filtres mb-3 recherche-carte">
-  <div class="fw-semibold small mb-2"><i class="fa fa-magnifying-glass me-2"></i>Rechercher une parcelle</div>
-  <form onsubmit="chargerParcelles(); return false">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label mb-1 small text-muted">
-          <i class="fa fa-magnifying-glass me-1"></i>Recherche</label>
-        <input type="text" id="f-q" class="form-control"
-               placeholder="Code parcelle, code unique, n° demande, nom, prénoms, CNI, téléphone">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1 small text-muted">Région</label>
-        <select id="f-region" class="form-select" disabled>
-          <option>{{ region }}</option></select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1 small text-muted">Département</label>
-        <select id="f-dept" class="form-select" onchange="chargerParcelles()">
-          <option value="">Tous</option>
-          {% for d in departements %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1 small text-muted">Sous-préfecture</label>
-        <select id="f-sp" class="form-select" onchange="chargerParcelles()">
-          <option value="">Toutes</option>
-          {% for s in sous_prefectures %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1 small text-muted">Village</label>
-        <select id="f-village" class="form-select" onchange="chargerParcelles()">
-          <option value="">Tous</option>
-          {% for v in villages %}<option value="{{ v }}">{{ v }}</option>{% endfor %}</select>
-      </div>
-    </div>
-
-    <details class="filtres-avances mt-3"><summary class="small fw-semibold">Dates de publicité et options d’affichage</summary>
-    <div class="row g-2 align-items-end mt-1">
-      <div class="col-auto">
-        <label class="form-label mb-1 small text-muted">
-          <i class="fa fa-calendar-days me-1"></i>Publicité ouverte du</label>
-        <input type="date" id="f-d1" class="form-control" onchange="chargerParcelles()">
-      </div>
-      <div class="col-auto">
-        <label class="form-label mb-1 small text-muted">au</label>
-        <input type="date" id="f-d2" class="form-control" onchange="chargerParcelles()">
-      </div>
-      <div class="col-auto">
-        <button class="btn btn-primary btn-sm px-3"><i class="fa fa-filter me-1"></i>Appliquer</button>
-      </div>
-      <div class="col-auto">
-        <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="reinitialiser()">
-          <i class="fa fa-rotate-left me-1"></i>Réinitialiser</button>
-      </div>
-      <div class="col-auto ms-auto">
-        <div class="form-check small"><input class="form-check-input" type="checkbox" id="f-exclues"
-            onchange="basculerCoucheExclues()">
-          <label class="form-check-label" for="f-exclues">Voir les parcelles à supprimer</label></div>
-        <div class="form-check small"><input class="form-check-input" type="checkbox" id="f-auto" checked>
-          <label class="form-check-label" for="f-auto">Recharger au déplacement</label></div>
-      </div>
-    </div>
     </details>
-  </form>
-</div>
-
-<div class="filtres mb-3 py-2">
-  <div class="d-flex align-items-center flex-wrap gap-2">
-
+    <details class="volet-section filtres-onglet">
+      <summary><i class="fa fa-sliders" aria-hidden="true"></i> Filtres géographiques et dates</summary>
+      <div class="volet-form">
+        <label for="f-region">Région</label><select id="f-region" class="form-select" disabled><option>{{ region }}</option></select>
+        <label for="f-dept">Département</label><select id="f-dept" class="form-select" onchange="chargerParcelles()"><option value="">Tous</option>{% for d in departements %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+        <label for="f-sp">Sous-préfecture</label><select id="f-sp" class="form-select" onchange="chargerParcelles()"><option value="">Toutes</option>{% for item in sous_prefectures %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select>
+        <label for="f-village">Village</label><select id="f-village" class="form-select" onchange="chargerParcelles()"><option value="">Tous</option>{% for v in villages %}<option value="{{ v }}">{{ v }}</option>{% endfor %}</select>
+        <label for="f-d1">Publicité ouverte du</label><input type="date" id="f-d1" class="form-control" onchange="chargerParcelles()">
+        <label for="f-d2">Au</label><input type="date" id="f-d2" class="form-control" onchange="chargerParcelles()">
+        <label class="form-check"><input class="form-check-input" type="checkbox" id="f-exclues" onchange="basculerCoucheExclues()"><span class="form-check-label">Voir les parcelles à supprimer</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" id="f-auto" checked><span class="form-check-label">Recharger au déplacement</span></label>
+        <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="reinitialiser()">Réinitialiser les filtres</button>
+      </div>
+    </details>
+    <div class="couches-titre"><i class="fa fa-layer-group" aria-hidden="true"></i> Couches et fonds</div>
     <div class="dropdown" id="gestion-couches">
       <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
               data-bs-toggle="dropdown" data-bs-auto-close="outside">
@@ -202,27 +175,8 @@
         </div>
       </div>
     </div>
-
-    <span class="small text-muted" id="resume-couches">
-      Parcelles publiées ({{ nb_visibles }}) · {{ nb_exclues }} à supprimer{% if couches %} ·
-      {{ couches|length }} couche(s) terrain disponible(s){% endif %}
-    </span>
-
-    {% if message_couches %}
-    <span class="small text-warning ms-auto">
-      <i class="fa fa-triangle-exclamation me-1"></i>Base terrain injoignable</span>
-    {% endif %}
-  </div>
-</div>
-
-<div class="carte-zone">
-  <section class="carte-cadre" aria-label="Carte interactive des parcelles">
-  <div class="carte-entete"><div><strong>Carte des parcelles</strong><span>Déplacez la carte, zoomez ou sélectionnez une parcelle.</span></div>
-  <button type="button" id="basculer-servitudes" class="btn btn-sm btn-outline-primary" aria-pressed="false"><i class="fa fa-layer-group me-1"></i>Afficher les servitudes</button>
-  <button type="button" id="vue-generale" class="btn btn-sm btn-outline-secondary" title="Revenir à l’étendue générale"><i class="fa fa-expand me-1"></i>Vue générale</button></div>
-  <div id="carte"></div></section>
-
-  <div class="panneau">
+    {% if message_couches %}<p class="small text-warning px-3"><i class="fa fa-triangle-exclamation me-1"></i>Base terrain injoignable</p>{% endif %}
+      <div class="panneau">
     <div class="card" id="panneau-vide">
       <div class="card-header">Fiche parcellaire</div><div class="card-body text-center py-5">
         <i class="fa fa-hand-pointer fa-2x text-muted mb-3 d-block" style="opacity:.35"></i>
@@ -271,6 +225,22 @@
       </div>
     </div>
   </div>
+  </aside>
+  <section class="carte-cadre" aria-label="Carte interactive des parcelles">
+    <div class="carte-entete">
+      <div class="carte-titre"><strong>Carte des parcelles</strong><span>Déplacez la carte, zoomez ou sélectionnez une parcelle.</span></div>
+      <form class="recherche-centree" role="search" onsubmit="chargerParcelles(); return false">
+        <label class="visually-hidden" for="f-q">Rechercher une parcelle</label>
+        <input type="search" id="f-q" class="form-control" placeholder="Code, demande, nom ou téléphone">
+        <button type="submit" class="btn btn-primary" aria-label="Rechercher"><i class="fa fa-magnifying-glass" aria-hidden="true"></i><span>Rechercher</span></button>
+      </form>
+      <div class="carte-actions">
+        <button type="button" id="basculer-servitudes" class="btn btn-sm btn-outline-primary" aria-pressed="false"><i class="fa fa-layer-group me-1"></i>Afficher les servitudes</button>
+        <button type="button" id="vue-generale" class="btn btn-sm btn-outline-secondary" title="Revenir à l’étendue générale"><i class="fa fa-expand me-1"></i>Vue générale</button>
+      </div>
+    </div>
+    <div id="carte"></div>
+  </section>
 </div>
 {% if request.user.is_staff %}<details class="card p-3 mb-3"><summary>Administration · Importer les servitudes</summary>
 <form method="post" action="{% url 'importer_servitudes' %}" enctype="multipart/form-data" class="mt-2">{% csrf_token %}
@@ -285,16 +255,12 @@
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
 const URL_PARCELLES = "{% url 'api_parcelles' %}";
-const bureau=window.matchMedia('(min-width: 1400px)');
+const bureau=window.matchMedia('(min-width: 1101px)');
 const gestionCouches=document.getElementById('gestion-couches');
-const emplacementCouches=document.createComment('emplacement du menu des couches');
-gestionCouches.before(emplacementCouches);
 function organiserCouches(){
-  if(bureau.matches){document.querySelector('.carte-zone').prepend(gestionCouches);gestionCouches.classList.add('webmap-couches');}
-  else{emplacementCouches.after(gestionCouches);gestionCouches.classList.remove('webmap-couches');}
-  requestAnimationFrame(()=>{if(typeof carte!=='undefined')carte.invalidateSize();});
+  gestionCouches.classList.toggle('webmap-couches',bureau.matches);
+  requestAnimationFrame(()=>carte.invalidateSize());
 }
-organiserCouches();
 bureau.addEventListener('change',organiserCouches);
 const CSRF = "{{ csrf_token }}";
 const ETENDUE = {{ etendue_json|safe }};
@@ -319,6 +285,7 @@ const CHAMPS = [
 ];
 
 const carte = L.map('carte', {preferCanvas: true});
+organiserCouches();
 L.control.scale({imperial:false,position:'bottomleft'}).addTo(carte);
 ['references','servitudes','parcelles'].forEach((nom,i)=>{carte.createPane(nom);carte.getPane(nom).style.zIndex=String(410+i*10);});
 carte.fitBounds([[ETENDUE.latMin, ETENDUE.lonMin], [ETENDUE.latMax, ETENDUE.lonMax]]);
@@ -668,6 +635,7 @@ function ouvrirFiche(feature, couche) {
 
   document.getElementById('panneau-vide').classList.add('d-none');
   document.getElementById('panneau-fiche').classList.remove('d-none');
+  if(!bureau.matches) document.getElementById('panneau-fiche').scrollIntoView({behavior:'smooth',block:'start'});
   document.getElementById('fiche-titre').textContent =
     feature.properties.code_parcelle || 'Parcelle';
 
